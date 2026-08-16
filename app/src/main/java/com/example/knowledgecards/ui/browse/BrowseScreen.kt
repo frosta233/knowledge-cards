@@ -1,24 +1,22 @@
 package com.example.knowledgecards.ui.browse
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -37,6 +35,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -44,14 +43,13 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.knowledgecards.data.Card
 import com.example.knowledgecards.domain.CategoryTree
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BrowseScreen(
     viewModel: BrowseViewModel,
-    onOpenDirectory: () -> Unit,
-    onOpenSettings: () -> Unit,
     onOpenEditor: (Long) -> Unit,
     onImport: () -> Unit
 ) {
@@ -119,21 +117,6 @@ fun BrowseScreen(
                         overflow = TextOverflow.Ellipsis,
                         style = MaterialTheme.typography.titleMedium
                     )
-                },
-                actions = {
-                    IconButton(onClick = onImport) {
-                        Icon(Icons.Filled.Add, contentDescription = "导入")
-                    }
-                    IconButton(onClick = { cards.getOrNull(pagerState.currentPage)?.let { onOpenEditor(it.id) } },
-                        enabled = cards.isNotEmpty()) {
-                        Icon(Icons.Filled.Edit, contentDescription = "编辑")
-                    }
-                    IconButton(onClick = onOpenDirectory, enabled = cards.isNotEmpty()) {
-                        Icon(Icons.Filled.List, contentDescription = "目录")
-                    }
-                    IconButton(onClick = onOpenSettings) {
-                        Icon(Icons.Filled.Settings, contentDescription = "设置")
-                    }
                 }
             )
         }
@@ -155,7 +138,11 @@ fun BrowseScreen(
                             .fillMaxWidth()
                             .weight(1f)
                     ) { page ->
-                        CardPage(cards[page], ui.fontSizeSp)
+                        CardPage(
+                            card = cards[page],
+                            fontSizeSp = ui.fontSizeSp,
+                            onEdit = { onOpenEditor(cards[page].id) }
+                        )
                     }
                     Text(
                         text = "第 ${pagerState.currentPage + 1} / 共 ${cards.size} 张",
@@ -164,7 +151,7 @@ fun BrowseScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 8.dp),
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        textAlign = TextAlign.Center
                     )
                 }
             }
@@ -173,36 +160,61 @@ fun BrowseScreen(
 }
 
 @Composable
-private fun CardPage(card: com.example.knowledgecards.data.Card, fontSizeSp: Float) {
+private fun CardPage(
+    card: Card,
+    fontSizeSp: Float,
+    onEdit: () -> Unit
+) {
     Surface(
         modifier = Modifier.fillMaxSize(),
         shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         tonalElevation = 2.dp
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 20.dp, vertical = 16.dp)
-        ) {
-            Text(
-                text = card.title,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
-            HorizontalDivider(
-                modifier = Modifier.padding(vertical = 12.dp),
-                color = MaterialTheme.colorScheme.outlineVariant
-            )
-            Text(
-                text = card.content.ifBlank { "（空卡片）" },
-                fontSize = fontSizeSp.sp,
-                lineHeight = (fontSizeSp * 1.55f).sp,
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-            )
+                    .fillMaxSize()
+                    .padding(horizontal = 20.dp, vertical = 16.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = card.title,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
+                Text(
+                    text = card.content.ifBlank { "（空卡片）" },
+                    fontSize = fontSizeSp.sp,
+                    lineHeight = (fontSizeSp * 1.55f).sp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                )
+            }
+            // Edit entry lives on the card itself.
+            FilledTonalIconButton(
+                onClick = onEdit,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(12.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Edit,
+                    contentDescription = "编辑",
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
     }
 }
@@ -214,18 +226,18 @@ private fun EmptyLibrary(onImport: () -> Unit) {
             .fillMaxSize()
             .padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center
     ) {
         Text(
             text = "还没有卡片",
             style = MaterialTheme.typography.titleLarge
         )
         Text(
-            text = "选择一个包含 .md 文件的文件夹导入\n每个文件是一张卡片，首行可写“路径: 分类/子分类”",
+            text = "在「设置」页或点击下方按钮导入\n选择包含 .md 文件的文件夹，每个文件是一张卡片",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 8.dp),
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            textAlign = TextAlign.Center
         )
         Button(
             onClick = onImport,

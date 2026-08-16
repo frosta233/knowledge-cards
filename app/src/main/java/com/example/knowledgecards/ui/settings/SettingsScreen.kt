@@ -7,40 +7,34 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.knowledgecards.data.SortMode
-import com.example.knowledgecards.domain.AppSettings
+import com.example.knowledgecards.domain.AccentColor
 import com.example.knowledgecards.domain.ThemeMode
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
-    onBack: () -> Unit,
+    onImport: () -> Unit,
     onExport: () -> Unit
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
@@ -54,7 +48,7 @@ fun SettingsScreen(
             title = { Text("导出完成") },
             text = { Text("成功导出 ${result.first} 个文件${if (result.second > 0) "，失败 ${result.second} 个" else ""}。") },
             confirmButton = {
-                androidx.compose.material3.TextButton(onClick = viewModel::consumeExportResult) { Text("好的") }
+                TextButton(onClick = viewModel::consumeExportResult) { Text("好的") }
             }
         )
     }
@@ -62,12 +56,7 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("设置") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
-                    }
-                }
+                title = { Text("设置") }
             )
         }
     ) { padding ->
@@ -79,12 +68,32 @@ fun SettingsScreen(
                 .padding(horizontal = 20.dp)
         ) {
             SettingSectionTitle("主题")
-            Row(modifier = Modifier.padding(vertical = 4.dp)) {
+            Text(
+                text = "深色 / 浅色 / 跟随系统",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)) {
                 ThemeMode.entries.forEach { mode ->
                     FilterChip(
                         selected = settings.themeMode == mode,
                         onClick = { viewModel.setThemeMode(mode) },
                         label = { Text(mode.label()) },
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                }
+            }
+            Text(
+                text = "强调色",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(modifier = Modifier.padding(top = 4.dp)) {
+                AccentColor.entries.forEach { color ->
+                    FilterChip(
+                        selected = settings.accentColor == color,
+                        onClick = { viewModel.setAccentColor(color) },
+                        label = { Text(color.label()) },
                         modifier = Modifier.padding(end = 8.dp)
                     )
                 }
@@ -120,18 +129,25 @@ fun SettingsScreen(
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
 
-            SettingSectionTitle("备份")
+            SettingSectionTitle("数据")
             Text(
-                text = "将全部卡片导出为 Markdown 文件夹，可用导入功能恢复。",
+                text = "从 Markdown 文件夹批量导入卡片，或把全部卡片导出为备份。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Button(
-                onClick = onExport,
-                enabled = !exporting,
-                modifier = Modifier.padding(top = 8.dp, bottom = 24.dp)
-            ) {
-                Text(if (exporting) "导出中…" else "导出备份（选择目标文件夹）")
+            Row(modifier = Modifier.padding(top = 8.dp, bottom = 24.dp)) {
+                Button(
+                    onClick = onImport,
+                    modifier = Modifier.padding(end = 12.dp)
+                ) {
+                    Text("导入 Markdown 文件夹")
+                }
+                OutlinedButton(
+                    onClick = onExport,
+                    enabled = !exporting
+                ) {
+                    Text(if (exporting) "导出中…" else "导出备份")
+                }
             }
         }
     }
@@ -151,4 +167,12 @@ private fun ThemeMode.label(): String = when (this) {
     ThemeMode.SYSTEM -> "跟随系统"
     ThemeMode.LIGHT -> "浅色"
     ThemeMode.DARK -> "深色"
+}
+
+private fun AccentColor.label(): String = when (this) {
+    AccentColor.SYSTEM -> "动态取色"
+    AccentColor.GREEN -> "绿色"
+    AccentColor.BLUE -> "蓝色"
+    AccentColor.ORANGE -> "橙色"
+    AccentColor.PURPLE -> "紫色"
 }

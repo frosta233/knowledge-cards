@@ -1,6 +1,12 @@
 package com.example.knowledgecards.widget
 
 import android.content.Context
+import android.content.res.Configuration
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
 import androidx.glance.LocalContext
@@ -8,6 +14,7 @@ import androidx.glance.LocalSize
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.SizeMode
+import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.lazy.LazyColumn
 import androidx.glance.appwidget.lazy.items
 import androidx.glance.appwidget.provideContent
@@ -23,9 +30,7 @@ import androidx.glance.layout.padding
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.unit.DpSize
+import androidx.glance.unit.ColorProvider
 import com.example.knowledgecards.KnowledgeCardsApp
 import com.example.knowledgecards.data.Card
 import com.example.knowledgecards.domain.CategoryTree
@@ -41,15 +46,16 @@ internal data class WidgetState(
 )
 
 /**
- * Home-screen widget showing the current card:
+ * Home-screen widget showing the current card, in a translucent
+ * acrylic-style panel:
  *
- *  ┌─────────────────────────────┐
- *  │ 辛温解表  (tap: 完整路径)      │
- *  │ 麻黄汤                        │
- *  │ 组成：麻黄、桂枝、杏仁、炙甘草。 │  ← 可上下滚动
+ *  ┌──────────────────────────────┐
+ *  │ 辛温解表        (tap: 完整路径) │
+ *  │ 麻黄汤                         │
+ *  │ 组成：麻黄、桂枝、杏仁、炙甘草。 │ ← 可上下滚动
  *  │ 功效：发汗解表，宣肺平喘。       │
- *  │ ◀ 上一张     3 / 24     下一张 ▶ │
- *  └─────────────────────────────┘
+ *  │ ◀ 上一张      3 / 24     下一张 ▶│
+ *  └──────────────────────────────┘
  *
  * Shares "current card" progress with the app through DataStore; updates only
  * happen on user interaction (buttons / path toggle) or app progress changes.
@@ -58,8 +64,9 @@ class CardWidget : GlanceAppWidget() {
 
     override val sizeMode: SizeMode = SizeMode.Responsive(
         setOf(
-            DpSize(320.dp, 180.dp), // 最小 3×5
-            DpSize(320.dp, 250.dp), // 常用 4×5
+            DpSize(250.dp, 180.dp), // 4×3 最小
+            DpSize(320.dp, 180.dp), // 5×3
+            DpSize(320.dp, 250.dp), // 5×4
             DpSize(320.dp, 320.dp),
             DpSize(440.dp, 250.dp),
             DpSize(440.dp, 320.dp),
@@ -91,15 +98,10 @@ class CardWidget : GlanceAppWidget() {
             }
         }
 
-        @androidx.compose.runtime.Composable
-        private fun renderContent(state: WidgetState) {
-            CardWidgetContent(state)
-        }
-
         @OptIn(androidx.glance.appwidget.ExperimentalGlanceRemoteViewsApi::class)
         internal suspend fun render(
             context: Context,
-            size: androidx.compose.ui.unit.DpSize,
+            size: DpSize,
             state: WidgetState
         ): android.widget.RemoteViews {
             val result = androidx.glance.appwidget.GlanceRemoteViews()
@@ -109,19 +111,29 @@ class CardWidget : GlanceAppWidget() {
     }
 }
 
-@androidx.compose.runtime.Composable
+@Composable
 private fun CardWidgetContent(state: WidgetState) {
     val context = LocalContext.current
     val size = LocalSize.current
     val colors = GlanceTheme.colors
     val card = state.card
 
+    val dark = (context.resources.configuration.uiMode and
+        Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+    // Acrylic-style translucent panel (stable, no blur needed).
+    val panelColor = if (dark) {
+        Color(0x8C1C1C22) // ~55% black panel in dark mode
+    } else {
+        Color(0xD9F4F4EF) // ~85% light panel in light mode
+    }
+
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
-            .background(colors.background)
-            .padding(horizontal = if (size.width >= 300.dp) 16.dp else 12.dp)
-            .padding(vertical = if (size.height >= 220.dp) 14.dp else 10.dp)
+            .background(ColorProvider(panelColor))
+            .cornerRadius(22.dp)
+            .padding(horizontal = 16.dp)
+            .padding(vertical = 12.dp)
     ) {
         if (card == null) {
             Text(
@@ -134,7 +146,7 @@ private fun CardWidgetContent(state: WidgetState) {
             return@Column
         }
 
-        // 1) Path bar — shows last segment, tap toggles the full path.
+        // 1) Path bar — last segment, tap toggles the full path.
         val pathText = if (state.pathExpanded) {
             card.path.ifEmpty { "未分类" }
         } else {
@@ -144,7 +156,7 @@ private fun CardWidgetContent(state: WidgetState) {
             text = pathText,
             maxLines = if (state.pathExpanded) 2 else 1,
             style = TextStyle(
-                fontSize = 11.sp,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
                 color = colors.primary
             ),
@@ -155,12 +167,12 @@ private fun CardWidgetContent(state: WidgetState) {
 
         Spacer(GlanceModifier.fillMaxWidth().height(4.dp))
 
-        // 2) Title — tap opens the app at this card.
+        // 2) Title.
         Text(
             text = card.title,
-            maxLines = if (size.height >= 220.dp) 2 else 1,
+            maxLines = 2,
             style = TextStyle(
-                fontSize = if (size.height >= 220.dp) 17.sp else 15.sp,
+                fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color = colors.onSurface
             ),
@@ -171,20 +183,17 @@ private fun CardWidgetContent(state: WidgetState) {
 
         Spacer(GlanceModifier.fillMaxWidth().height(6.dp))
 
-        // 3) Scrollable body — a Glance LazyColumn provides widget-internal
+        // 3) Scrollable body — Glance LazyColumn provides widget-internal
         //    scrolling for long card text (equivalent of a ScrollView).
         //    A concrete height is required (ListView can't use weights).
-        val bodyHeight = (size.height - 130.dp).coerceAtLeast(40.dp)
+        val bodyHeight = (size.height - 142.dp).coerceAtLeast(36.dp)
         LazyColumn(
             modifier = GlanceModifier.fillMaxWidth().height(bodyHeight)
         ) {
             items(listOf(card.content)) { body ->
                 Text(
                     text = body,
-                    style = TextStyle(
-                        fontSize = if (size.height >= 220.dp) 13.sp else 12.sp,
-                        color = colors.onSurface
-                    ),
+                    style = TextStyle(fontSize = 14.sp, color = colors.onSurface),
                     modifier = GlanceModifier.clickable(
                         CardWidgetActions.openCardAction(context, card.id)
                     )
@@ -194,17 +203,16 @@ private fun CardWidgetContent(state: WidgetState) {
 
         Spacer(GlanceModifier.fillMaxWidth().height(6.dp))
 
-        // 4) Paging controls — widgets don't support swipe gestures, so
-        //    flipping cards is done with explicit buttons.
+        // 4) Paging controls — prev flush left, counter centered, next flush
+        //    right (widgets don't support swipe gestures, so flipping cards
+        //    uses explicit buttons).
         Row(
             modifier = GlanceModifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             val prevEnabled = state.index > 0
             val nextEnabled = state.index < state.total - 1
-            val disabledColor = androidx.glance.unit.ColorProvider(
-                androidx.compose.ui.graphics.Color.White.copy(alpha = 0.4f)
-            )
+            val disabledColor = ColorProvider(Color.White.copy(alpha = 0.45f))
             val prevAction = CardWidgetActions.broadcastAction(
                 context, CardWidgetActions.ACTION_PREV
             )
@@ -214,32 +222,37 @@ private fun CardWidgetContent(state: WidgetState) {
             Text(
                 text = "◀ 上一张",
                 style = TextStyle(
-                    fontSize = 12.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
                     color = if (prevEnabled) colors.primary else disabledColor
                 ),
                 modifier = if (prevEnabled) {
-                    GlanceModifier.defaultWeight().clickable(prevAction)
+                    GlanceModifier
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                        .clickable(prevAction)
                 } else {
-                    GlanceModifier.defaultWeight()
+                    GlanceModifier.padding(horizontal = 6.dp, vertical = 2.dp)
                 }
             )
+            Spacer(GlanceModifier.fillMaxWidth().defaultWeight())
             Text(
                 text = "${state.index + 1} / ${state.total}",
-                style = TextStyle(fontSize = 12.sp, color = colors.onSurface),
-                modifier = GlanceModifier.defaultWeight()
+                style = TextStyle(fontSize = 13.sp, color = colors.onSurface)
             )
+            Spacer(GlanceModifier.fillMaxWidth().defaultWeight())
             Text(
                 text = "下一张 ▶",
                 style = TextStyle(
-                    fontSize = 12.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
                     color = if (nextEnabled) colors.primary else disabledColor
                 ),
                 modifier = if (nextEnabled) {
-                    GlanceModifier.defaultWeight().clickable(nextAction)
+                    GlanceModifier
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                        .clickable(nextAction)
                 } else {
-                    GlanceModifier.defaultWeight()
+                    GlanceModifier.padding(horizontal = 6.dp, vertical = 2.dp)
                 }
             )
         }

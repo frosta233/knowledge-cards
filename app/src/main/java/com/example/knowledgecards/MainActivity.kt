@@ -4,16 +4,23 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -21,6 +28,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,7 +40,6 @@ import com.example.knowledgecards.data.import.CardImporter
 import com.example.knowledgecards.data.import.ImportResult
 import com.example.knowledgecards.data.import.SafTreeScanner
 import com.example.knowledgecards.domain.AppSettings
-import com.example.knowledgecards.ui.Screen
 import com.example.knowledgecards.ui.browse.BrowseScreen
 import com.example.knowledgecards.ui.browse.BrowseViewModel
 import com.example.knowledgecards.ui.directory.DirectoryScreen
@@ -47,6 +54,12 @@ import com.example.knowledgecards.widget.WidgetUpdater
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+private enum class MainTab(val label: String) {
+    FLASHCARDS("闪卡"),
+    DIRECTORY("目录"),
+    SETTINGS("设置")
+}
 
 class MainActivity : ComponentActivity() {
 
@@ -82,7 +95,10 @@ class MainActivity : ComponentActivity() {
             val container = (application as KnowledgeCardsApp).container
             val settings by container.progressStore.settings
                 .collectAsStateWithLifecycle(initialValue = AppSettings())
-            KnowledgeCardsTheme(themeMode = settings.themeMode) {
+            KnowledgeCardsTheme(
+                themeMode = settings.themeMode,
+                accentColor = settings.accentColor
+            ) {
                 MainNav()
             }
         }
@@ -133,44 +149,64 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     private fun MainNav() {
-        val stack = remember { mutableStateOf(listOf<Screen>(Screen.Browse)) }
-        val current = stack.value.last()
+        var selectedTab by rememberSaveable { mutableStateOf(MainTab.FLASHCARDS) }
+        var editingCardId by rememberSaveable { mutableStateOf<Long?>(null) }
 
-        BackHandler(enabled = stack.value.size > 1) {
-            stack.value = stack.value.dropLast(1)
+        // Full-screen editor (hides the bottom bar).
+        val editingId = editingCardId
+        if (editingId != null) {
+            val editorVm = remember(editingId) { editorViewModel(editingId) }
+            EditorScreen(
+                viewModel = editorVm,
+                onBack = { editingCardId = null }
+            )
+            return
         }
 
-        when (current) {
-            is Screen.Browse -> BrowseScreen(
-                viewModel = browseViewModel,
-                onOpenDirectory = { stack.value += Screen.Directory },
-                onOpenSettings = { stack.value += Screen.Settings },
-                onOpenEditor = { cardId -> stack.value += Screen.Editor(cardId) },
-                onImport = { importTreeLauncher.launch(null) }
-            )
-
-            is Screen.Directory -> DirectoryScreen(
-                viewModel = directoryViewModel,
-                onBack = { stack.value = stack.value.dropLast(1) },
-                onOpenCard = { cardId ->
-                    stack.value = stack.value.dropLast(1)
-                    browseViewModel.jumpTo(cardId)
+        Scaffold(
+            bottomBar = {
+                NavigationBar {
+                    MainTab.entries.forEach { tab ->
+                        NavigationBarItem(
+                            selected = selectedTab == tab,
+                            onClick = { selectedTab = tab },
+                            icon = {
+                                Icon(
+                                    imageVector = when (tab) {
+                                        MainTab.FLASHCARDS -> Icons.Filled.Home
+                                        MainTab.DIRECTORY -> Icons.AutoMirrored.Filled.List
+                                        MainTab.SETTINGS -> Icons.Filled.Settings
+                                    },
+                                    contentDescription = tab.label
+                                )
+                            },
+                            label = { Text(tab.label) }
+                        )
+                    }
                 }
-            )
+            }
+        ) { padding ->
+            when (selectedTab) {
+                MainTab.FLASHCARDS -> BrowseScreen(
+                    viewModel = browseViewModel,
+                    onOpenEditor = { editingCardId = it },
+                    onImport = { importTreeLauncher.launch(null) }
+                )
 
-            is Screen.Editor -> {
-                val editorVm = remember(current) { editorViewModel(current.cardId) }
-                EditorScreen(
-                    viewModel = editorVm,
-                    onBack = { stack.value = stack.value.dropLast(1) }
+                MainTab.DIRECTORY -> DirectoryScreen(
+                    viewModel = directoryViewModel,
+                    onOpenCard = { cardId ->
+                        browseViewModel.jumpTo(cardId)
+                        selectedTab = MainTab.FLASHCARDS
+                    }
+                )
+
+                MainTab.SETTINGS -> SettingsScreen(
+                    viewModel = settingsViewModel,
+                    onImport = { importTreeLauncher.launch(null) },
+                    onExport = { exportTreeLauncher.launch(null) }
                 )
             }
-
-            is Screen.Settings -> SettingsScreen(
-                viewModel = settingsViewModel,
-                onBack = { stack.value = stack.value.dropLast(1) },
-                onExport = { exportTreeLauncher.launch(null) }
-            )
         }
 
         when (val state = importingState) {

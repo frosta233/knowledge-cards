@@ -17,11 +17,18 @@ private val Context.dataStore by preferencesDataStore(name = "app_settings")
 /** Theme preference. */
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
+/**
+ * Accent color preference. SYSTEM follows the wallpaper dynamic color;
+ * the presets are used when dynamic color is unavailable or unwanted.
+ */
+enum class AccentColor { SYSTEM, GREEN, BLUE, ORANGE, PURPLE }
+
 /** Immutable snapshot of all user settings and the browse progress. */
 data class AppSettings(
     val lastCardId: Long = 0L,
     val sortMode: SortMode = SortMode.TITLE,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    val accentColor: AccentColor = AccentColor.SYSTEM,
     val fontSizeSp: Float = 18f,
     val widgetPathExpanded: Boolean = false
 )
@@ -36,6 +43,7 @@ class ProgressStore(private val context: Context) {
         val LAST_CARD_ID = longPreferencesKey("last_card_id")
         val SORT_MODE = intPreferencesKey("sort_mode")
         val THEME_MODE = intPreferencesKey("theme_mode")
+        val ACCENT_COLOR = intPreferencesKey("accent_color")
         val FONT_SIZE = floatPreferencesKey("font_size_sp")
         val WIDGET_PATH_EXPANDED = booleanPreferencesKey("widget_path_expanded")
     }
@@ -45,6 +53,7 @@ class ProgressStore(private val context: Context) {
             lastCardId = prefs[Keys.LAST_CARD_ID] ?: 0L,
             sortMode = SortMode.entries.getOrElse(prefs[Keys.SORT_MODE] ?: 0) { SortMode.TITLE },
             themeMode = ThemeMode.entries.getOrElse(prefs[Keys.THEME_MODE] ?: 0) { ThemeMode.SYSTEM },
+            accentColor = AccentColor.entries.getOrElse(prefs[Keys.ACCENT_COLOR] ?: 0) { AccentColor.SYSTEM },
             fontSizeSp = prefs[Keys.FONT_SIZE] ?: 18f,
             widgetPathExpanded = prefs[Keys.WIDGET_PATH_EXPANDED] ?: false
         )
@@ -62,6 +71,10 @@ class ProgressStore(private val context: Context) {
 
     suspend fun setThemeMode(mode: ThemeMode) {
         context.dataStore.edit { it[Keys.THEME_MODE] = mode.ordinal }
+    }
+
+    suspend fun setAccentColor(color: AccentColor) {
+        context.dataStore.edit { it[Keys.ACCENT_COLOR] = color.ordinal }
     }
 
     suspend fun setFontSize(sp: Float) {

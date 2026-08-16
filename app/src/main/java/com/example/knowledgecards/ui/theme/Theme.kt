@@ -9,30 +9,68 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import com.example.knowledgecards.domain.AccentColor
 import com.example.knowledgecards.domain.ThemeMode
 
-private val LightColors = lightColorScheme(
-    primary = Color(0xFF1B5E20),
-    onPrimary = Color.White,
-    primaryContainer = Color(0xFFA5D6A7),
-    onPrimaryContainer = Color(0xFF0B3D0F),
-    secondaryContainer = Color(0xFFE8F5E9),
-    surface = Color(0xFFFDFDF6),
-    background = Color(0xFFFDFDF6)
+/** Accent presets used when dynamic color is off (or not supported). */
+private val AccentLightColors = mapOf(
+    AccentColor.GREEN to lightColorScheme(
+        primary = Color(0xFF2E7D32),
+        onPrimary = Color.White,
+        primaryContainer = Color(0xFFB7F0B9),
+        onPrimaryContainer = Color(0xFF002105)
+    ),
+    AccentColor.BLUE to lightColorScheme(
+        primary = Color(0xFF1565C0),
+        onPrimary = Color.White,
+        primaryContainer = Color(0xFFD6E3FF),
+        onPrimaryContainer = Color(0xFF001B3F)
+    ),
+    AccentColor.ORANGE to lightColorScheme(
+        primary = Color(0xFFE65100),
+        onPrimary = Color.White,
+        primaryContainer = Color(0xFFFFDBC9),
+        onPrimaryContainer = Color(0xFF331000)
+    ),
+    AccentColor.PURPLE to lightColorScheme(
+        primary = Color(0xFF6A1B9A),
+        onPrimary = Color.White,
+        primaryContainer = Color(0xFFEDDBFF),
+        onPrimaryContainer = Color(0xFF24004A)
+    )
 )
 
-private val DarkColors = darkColorScheme(
-    primary = Color(0xFF81C784),
-    onPrimary = Color(0xFF003300),
-    primaryContainer = Color(0xFF1B5E20),
-    onPrimaryContainer = Color(0xFFC8E6C9),
-    surface = Color(0xFF121412),
-    background = Color(0xFF121412)
+private val AccentDarkColors = mapOf(
+    AccentColor.GREEN to darkColorScheme(
+        primary = Color(0xFF81C784),
+        onPrimary = Color(0xFF00390A),
+        primaryContainer = Color(0xFF1B5E20),
+        onPrimaryContainer = Color(0xFFC8E6C9)
+    ),
+    AccentColor.BLUE to darkColorScheme(
+        primary = Color(0xFFAAC7FF),
+        onPrimary = Color(0xFF002F66),
+        primaryContainer = Color(0xFF004494),
+        onPrimaryContainer = Color(0xFFD6E3FF)
+    ),
+    AccentColor.ORANGE to darkColorScheme(
+        primary = Color(0xFFFFB68C),
+        onPrimary = Color(0xFF541E00),
+        primaryContainer = Color(0xFF7A3400),
+        onPrimaryContainer = Color(0xFFFFDBC9)
+    ),
+    AccentColor.PURPLE to darkColorScheme(
+        primary = Color(0xFFD7B8FF),
+        onPrimary = Color(0xFF3D006A),
+        primaryContainer = Color(0xFF53008E),
+        onPrimaryContainer = Color(0xFFEDDBFF)
+    )
 )
 
 @Composable
 fun KnowledgeCardsTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
+    accentColor: AccentColor = AccentColor.SYSTEM,
     content: @Composable () -> Unit
 ) {
     val darkTheme = when (themeMode) {
@@ -42,8 +80,10 @@ fun KnowledgeCardsTheme(
     }
     val context = LocalContext.current
     val colorScheme = when {
-        darkTheme -> dynamicDarkColorScheme(context)
-        else -> dynamicLightColorScheme(context)
+        accentColor == AccentColor.SYSTEM && darkTheme -> dynamicDarkColorScheme(context)
+        accentColor == AccentColor.SYSTEM -> dynamicLightColorScheme(context)
+        accentColor != AccentColor.SYSTEM && darkTheme -> AccentDarkColors.getValue(accentColor)
+        else -> AccentLightColors.getValue(accentColor)
     }
     MaterialTheme(
         colorScheme = colorScheme,

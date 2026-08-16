@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.knowledgecards.KnowledgeCardsApp
 import com.example.knowledgecards.data.SortMode
 import com.example.knowledgecards.data.export.CardExporter
+import com.example.knowledgecards.domain.AccentColor
 import com.example.knowledgecards.domain.AppSettings
 import com.example.knowledgecards.domain.ThemeMode
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,6 +32,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch { store.setThemeMode(mode) }
+    }
+
+    fun setAccentColor(color: com.example.knowledgecards.domain.AccentColor) {
+        viewModelScope.launch { store.setAccentColor(color) }
     }
 
     fun setSortMode(mode: SortMode) {

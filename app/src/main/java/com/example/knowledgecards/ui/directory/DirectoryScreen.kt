@@ -39,7 +39,6 @@ import com.example.knowledgecards.domain.CategoryNode
 @Composable
 fun DirectoryScreen(
     viewModel: DirectoryViewModel,
-    onBack: () -> Unit,
     onOpenCard: (Long) -> Unit
 ) {
     val tree by viewModel.tree.collectAsStateWithLifecycle()
@@ -52,12 +51,7 @@ fun DirectoryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("目录") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
-                    }
-                }
+                title = { Text("目录") }
             )
         }
     ) { padding ->
@@ -72,7 +66,7 @@ fun DirectoryScreen(
             if (tree.isEmpty()) {
                 item {
                     Text(
-                        text = "（暂无卡片，请先在浏览页导入）",
+                        text = "（暂无卡片，请先在「闪卡」页或「设置」页导入）",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(24.dp)

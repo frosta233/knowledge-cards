@@ -70,13 +70,11 @@ object WidgetUpdater {
 
     /** Approximates the current widget size from AppWidget options (in dp). */
     private fun widgetSize(options: Bundle): DpSize {
+        // Use the minimum reported size so the direct-push render never
+        // overflows the actual cell; the layout adapts via LocalSize anyway.
         val minW = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250)
-        val maxW = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, minW)
         val minH = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 180)
-        val maxH = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, minH)
-        val width = if (maxW > minW) (minW + maxW) / 2 else minW
-        val height = if (maxH > minH) (minH + maxH) / 2 else minH
-        return DpSize(width.dp, height.dp)
+        return DpSize(minW.dp, minH.dp)
     }
 }
 
