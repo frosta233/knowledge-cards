@@ -10,6 +10,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -22,7 +23,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -165,30 +165,11 @@ class MainActivity : ComponentActivity() {
             return
         }
 
-        Scaffold(
-            bottomBar = {
-                NavigationBar {
-                    MainTab.entries.forEach { tab ->
-                        NavigationBarItem(
-                            selected = selectedTab == tab,
-                            onClick = { selectedTab = tab },
-                            icon = {
-                                Icon(
-                                    imageVector = when (tab) {
-                                        MainTab.FLASHCARDS -> Icons.Filled.Home
-                                        MainTab.DIRECTORY -> Icons.AutoMirrored.Filled.List
-                                        MainTab.SETTINGS -> Icons.Filled.Settings
-                                    },
-                                    contentDescription = tab.label
-                                )
-                            },
-                            label = { Text(tab.label) }
-                        )
-                    }
-                }
-            }
-        ) { padding ->
-            Box(modifier = Modifier.padding(padding)) {
+        // Plain Column instead of Scaffold: each tab screen draws its own
+        // TopAppBar with proper status-bar insets; a nested Scaffold would
+        // double-apply insets and leave a blank strip on top.
+        Column(modifier = Modifier.fillMaxSize()) {
+            Box(modifier = Modifier.fillMaxSize().weight(1f)) {
                 when (selectedTab) {
                 MainTab.FLASHCARDS -> BrowseScreen(
                     viewModel = browseViewModel,
@@ -217,6 +198,25 @@ class MainActivity : ComponentActivity() {
                     onImport = { importTreeLauncher.launch(null) },
                     onExport = { exportTreeLauncher.launch(null) }
                 )
+                }
+            }
+            NavigationBar {
+                MainTab.entries.forEach { tab ->
+                    NavigationBarItem(
+                        selected = selectedTab == tab,
+                        onClick = { selectedTab = tab },
+                        icon = {
+                            Icon(
+                                imageVector = when (tab) {
+                                    MainTab.FLASHCARDS -> Icons.Filled.Home
+                                    MainTab.DIRECTORY -> Icons.AutoMirrored.Filled.List
+                                    MainTab.SETTINGS -> Icons.Filled.Settings
+                                },
+                                contentDescription = tab.label
+                            )
+                        },
+                        label = { Text(tab.label) }
+                    )
                 }
             }
         }

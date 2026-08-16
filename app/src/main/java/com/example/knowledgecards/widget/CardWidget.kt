@@ -24,7 +24,6 @@ import androidx.glance.layout.Column
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
 import androidx.glance.layout.fillMaxSize
-import androidx.glance.layout.fillMaxHeight
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
 import androidx.glance.layout.padding
@@ -218,9 +217,10 @@ private fun CardWidgetContent(state: WidgetState) {
         //    scrolling for long card text (equivalent of a ScrollView).
         //    A concrete height is required (ListView can't use weights).
         LazyColumn(
-            // match_parent in the column layout: ListView fills the remaining
-            // space so the paging row always sits at the bottom edge.
-            modifier = GlanceModifier.fillMaxWidth().fillMaxHeight()
+            // layout_weight on the ListView's parent LinearLayout: it absorbs
+            // the remaining height so the paging row always sits at the
+            // bottom edge regardless of the reported widget size.
+            modifier = GlanceModifier.fillMaxWidth().defaultWeight()
         ) {
             items(listOf(card.content)) { body ->
                 Text(
