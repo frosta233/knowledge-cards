@@ -1,6 +1,7 @@
 package com.example.knowledgecards.ui.directory
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -205,39 +206,43 @@ private fun NodeRow(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(start = 8.dp)
         )
-        IconButton(onClick = { menuOpen = true }) {
-            Icon(Icons.Filled.MoreVert, contentDescription = "管理分类")
-        }
-        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-            DropdownMenuItem(
-                text = { Text("上移") },
-                onClick = {
-                    menuOpen = false
-                    viewModel.moveCategory(node.fullPath, -1)
-                }
-            )
-            DropdownMenuItem(
-                text = { Text("下移") },
-                onClick = {
-                    menuOpen = false
-                    viewModel.moveCategory(node.fullPath, +1)
-                }
-            )
-            DropdownMenuItem(
-                text = { Text("重命名…") },
-                onClick = {
-                    menuOpen = false
-                    renameValue = node.name
-                    showRename = true
-                }
-            )
-            DropdownMenuItem(
-                text = { Text("删除…") },
-                onClick = {
-                    menuOpen = false
-                    showDelete = true
-                }
-            )
+        // The menu must share a Box with its anchor button, otherwise the
+        // popup anchors to the enclosing Row and appears at the screen edge.
+        Box {
+            IconButton(onClick = { menuOpen = true }) {
+                Icon(Icons.Filled.MoreVert, contentDescription = "管理分类")
+            }
+            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                DropdownMenuItem(
+                    text = { Text("上移") },
+                    onClick = {
+                        menuOpen = false
+                        viewModel.moveCategory(node.fullPath, -1)
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("下移") },
+                    onClick = {
+                        menuOpen = false
+                        viewModel.moveCategory(node.fullPath, +1)
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("重命名…") },
+                    onClick = {
+                        menuOpen = false
+                        renameValue = node.name
+                        showRename = true
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("删除…") },
+                    onClick = {
+                        menuOpen = false
+                        showDelete = true
+                    }
+                )
+            }
         }
     }
 
