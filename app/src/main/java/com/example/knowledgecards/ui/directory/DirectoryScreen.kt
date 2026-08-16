@@ -175,7 +175,7 @@ private fun NodeRow(
             .padding(start = 12.dp + (depth * 20).dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (node.children.isNotEmpty()) {
+        if (node.children.isNotEmpty() || node.cards.isNotEmpty()) {
             Icon(
                 imageVector = if (isExpanded) Icons.Filled.KeyboardArrowDown
                 else Icons.Filled.KeyboardArrowRight,

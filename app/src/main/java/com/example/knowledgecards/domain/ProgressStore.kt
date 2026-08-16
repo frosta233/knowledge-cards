@@ -29,7 +29,7 @@ enum class AccentColor {
 /** Immutable snapshot of all user settings and the browse progress. */
 data class AppSettings(
     val lastCardId: Long = 0L,
-    val sortMode: SortMode = SortMode.TITLE,
+    val sortMode: SortMode = SortMode.DIRECTORY,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val accentColor: AccentColor = AccentColor.SYSTEM,
     val fontSizeSp: Float = 18f,
@@ -54,7 +54,7 @@ class ProgressStore(private val context: Context) {
     val settings: Flow<AppSettings> = context.dataStore.data.map { prefs ->
         AppSettings(
             lastCardId = prefs[Keys.LAST_CARD_ID] ?: 0L,
-            sortMode = SortMode.entries.getOrElse(prefs[Keys.SORT_MODE] ?: 0) { SortMode.TITLE },
+            sortMode = SortMode.entries.getOrElse(prefs[Keys.SORT_MODE] ?: 0) { SortMode.DIRECTORY },
             themeMode = ThemeMode.entries.getOrElse(prefs[Keys.THEME_MODE] ?: 0) { ThemeMode.SYSTEM },
             accentColor = AccentColor.entries.getOrElse(prefs[Keys.ACCENT_COLOR] ?: 0) { AccentColor.SYSTEM },
             fontSizeSp = prefs[Keys.FONT_SIZE] ?: 18f,

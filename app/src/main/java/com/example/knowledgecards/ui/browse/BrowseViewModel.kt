@@ -9,6 +9,7 @@ import com.example.knowledgecards.data.CardRepository
 import com.example.knowledgecards.data.SortMode
 import com.example.knowledgecards.data.UNCATEGORIZED
 import com.example.knowledgecards.data.isPathWithin
+import com.example.knowledgecards.domain.CategoryTree
 import com.example.knowledgecards.domain.ProgressStore
 import com.example.knowledgecards.widget.WidgetUpdater
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -51,21 +52,41 @@ class BrowseViewModel(application: Application) : AndroidViewModel(application) 
 
     private var lastSavedCardId = 0L
 
-    val uiState: StateFlow<BrowseUiState> = combine(store.settings, _scopePath) { s, scope -> s to scope }
-        .flatMapLatest { (settings, scope) ->
+    val uiState: StateFlow<BrowseUiState> =
+        combine(store.settings, _scopePath, repository.observeCategoryOrders()) { s, scope, orders ->
+            Triple(s, scope, orders)
+        }
+        .flatMapLatest { (settings, scope, orders) ->
             repository.observeCards(settings.sortMode)
                 .map { all ->
-                    val cards = when {
+                    val scoped = when {
                         scope.isEmpty() -> all
                         // The 未分类 root node is a display name; its cards
                         // have an empty path.
                         scope == UNCATEGORIZED -> all.filter { it.path.isEmpty() }
                         else -> all.filter { isPathWithin(scope, it.path) }
                     }
+                    val cards = if (settings.sortMode == SortMode.DIRECTORY) {
+                        orderByTree(scoped, orders)
+                    } else {
+                        scoped
+                    }
                     BrowseUiState(cards, settings.fontSizeSp, settings.sortMode)
                 }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BrowseUiState())
+
+    /** Orders cards by the category tree (manual order, then name), depth-first. */
+    private fun orderByTree(
+        cards: List<Card>,
+        orders: List<com.example.knowledgecards.data.CategoryOrder>
+    ): List<Card> {
+        val orderMap = orders.associate { it.path to it.position }
+        val roots = CategoryTree.build(cards, orderMap)
+        val ids = CategoryTree.flattenCardIds(roots)
+        val byId = cards.associateBy { it.id }
+        return ids.mapNotNull { byId[it] }
+    }
 
     /**
      * Index to show on first composition: the requested start card, else a

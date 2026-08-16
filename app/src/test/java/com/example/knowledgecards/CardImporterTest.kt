@@ -22,14 +22,14 @@ class CardImporterTest {
         override fun observeCards(sortMode: SortMode): Flow<List<Card>> =
             flow.map { list ->
                 when (sortMode) {
-                    SortMode.TITLE -> list.sortedBy { it.title }
+                    SortMode.DIRECTORY, SortMode.TITLE -> list.sortedBy { it.title }
                     SortMode.IMPORT -> list.sortedBy { it.sortOrder }
                 }
             }
 
         override suspend fun getCards(sortMode: SortMode): List<Card> =
             when (sortMode) {
-                SortMode.TITLE -> cards.sortedBy { it.title }
+                SortMode.DIRECTORY, SortMode.TITLE -> cards.sortedBy { it.title }
                 SortMode.IMPORT -> cards.sortedBy { it.sortOrder }
             }
 

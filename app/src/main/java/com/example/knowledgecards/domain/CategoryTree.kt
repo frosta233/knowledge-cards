@@ -94,6 +94,12 @@ object CategoryTree {
     fun collectCardIds(node: CategoryNode): List<Long> =
         node.cards.map { it.id } + node.children.flatMap { collectCardIds(it) }
 
+    /** Depth-first card ids across the whole tree (tree display order). */
+    fun flattenCardIds(nodes: List<CategoryNode>): List<Long> =
+        nodes.flatMap { node ->
+            node.cards.map { it.id } + flattenCardIds(node.children)
+        }
+
     /** All card ids under the category with [path], in display order. */
     fun collectCardIds(cards: List<Card>, path: String): List<Long> {
         val roots = build(cards)

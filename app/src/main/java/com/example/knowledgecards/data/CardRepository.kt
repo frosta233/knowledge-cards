@@ -32,19 +32,19 @@ interface CardRepository {
     suspend fun deleteCategory(path: String)
 }
 
-enum class SortMode { TITLE, IMPORT }
+enum class SortMode { DIRECTORY, TITLE, IMPORT }
 
 class RoomCardRepository(private val dao: CardDao) : CardRepository {
 
     override fun observeCards(sortMode: SortMode): Flow<List<Card>> =
         when (sortMode) {
-            SortMode.TITLE -> dao.observeAllByTitle()
+            SortMode.DIRECTORY, SortMode.TITLE -> dao.observeAllByTitle()
             SortMode.IMPORT -> dao.observeAllByImportOrder()
         }
 
     override suspend fun getCards(sortMode: SortMode): List<Card> =
         when (sortMode) {
-            SortMode.TITLE -> dao.getAllByTitle()
+            SortMode.DIRECTORY, SortMode.TITLE -> dao.getAllByTitle()
             SortMode.IMPORT -> dao.getAllByImportOrder()
         }
 

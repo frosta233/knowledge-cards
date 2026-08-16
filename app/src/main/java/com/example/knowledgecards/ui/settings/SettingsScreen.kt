@@ -99,6 +99,13 @@ fun SettingsScreen(
             SettingSectionTitle("浏览顺序")
             Row(verticalAlignment = Alignment.CenterVertically) {
                 RadioButton(
+                    selected = settings.sortMode == SortMode.DIRECTORY,
+                    onClick = { viewModel.setSortMode(SortMode.DIRECTORY) }
+                )
+                Text("目录顺序（与目录页一致）")
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RadioButton(
                     selected = settings.sortMode == SortMode.TITLE,
                     onClick = { viewModel.setSortMode(SortMode.TITLE) }
                 )
