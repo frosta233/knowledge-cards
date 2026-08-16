@@ -7,13 +7,14 @@ import com.example.knowledgecards.KnowledgeCardsApp
 import com.example.knowledgecards.data.Card
 import com.example.knowledgecards.data.CardRepository
 import com.example.knowledgecards.data.SortMode
+import com.example.knowledgecards.data.isPathWithin
 import com.example.knowledgecards.domain.ProgressStore
 import com.example.knowledgecards.widget.WidgetUpdater
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -43,12 +44,23 @@ class BrowseViewModel(application: Application) : AndroidViewModel(application) 
     /** The card id to land on at startup (widget deep link); 0 = restore. */
     private val startCardId = MutableStateFlow(0L)
 
+    /** Browse scope: empty = all cards, otherwise only cards under this path. */
+    private val _scopePath = MutableStateFlow("")
+    val scopePath: StateFlow<String> = _scopePath
+
     private var lastSavedCardId = 0L
 
-    val uiState: StateFlow<BrowseUiState> = store.settings
-        .flatMapLatest { settings ->
+    val uiState: StateFlow<BrowseUiState> = combine(store.settings, _scopePath) { s, scope -> s to scope }
+        .flatMapLatest { (settings, scope) ->
             repository.observeCards(settings.sortMode)
-                .map { cards -> BrowseUiState(cards, settings.fontSizeSp, settings.sortMode) }
+                .map { all ->
+                    val cards = if (scope.isEmpty()) {
+                        all
+                    } else {
+                        all.filter { isPathWithin(scope, it.path) }
+                    }
+                    BrowseUiState(cards, settings.fontSizeSp, settings.sortMode)
+                }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BrowseUiState())
 
@@ -73,6 +85,17 @@ class BrowseViewModel(application: Application) : AndroidViewModel(application) 
 
     fun jumpTo(cardId: Long) {
         _pendingJump.value = cardId
+    }
+
+    /** Selects a flashcard set (scope path) and jumps to [cardId] inside it. */
+    fun setScope(path: String, cardId: Long) {
+        _scopePath.value = path
+        _pendingJump.value = cardId
+    }
+
+    fun clearScope() {
+        _scopePath.value = ""
+        _pendingJump.value = 0L
     }
 
     fun consumeJump() {

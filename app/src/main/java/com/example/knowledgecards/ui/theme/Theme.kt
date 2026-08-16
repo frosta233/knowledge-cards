@@ -37,6 +37,25 @@ private val AccentLightColors = mapOf(
         onPrimary = Color.White,
         primaryContainer = Color(0xFFEDDBFF),
         onPrimaryContainer = Color(0xFF24004A)
+    ),
+    // Morandi palette (low saturation, dusty tones)
+    AccentColor.SAGE to lightColorScheme(
+        primary = Color(0xFF6B7F6E),
+        onPrimary = Color.White,
+        primaryContainer = Color(0xFFDDEADF),
+        onPrimaryContainer = Color(0xFF1B3320)
+    ),
+    AccentColor.DUSTY_BLUE to lightColorScheme(
+        primary = Color(0xFF6E8A99),
+        onPrimary = Color.White,
+        primaryContainer = Color(0xFFD9E9F2),
+        onPrimaryContainer = Color(0xFF162A35)
+    ),
+    AccentColor.TERRACOTTA to lightColorScheme(
+        primary = Color(0xFFB07B68),
+        onPrimary = Color.White,
+        primaryContainer = Color(0xFFF5E0D8),
+        onPrimaryContainer = Color(0xFF3C1F14)
     )
 )
 
@@ -64,6 +83,25 @@ private val AccentDarkColors = mapOf(
         onPrimary = Color(0xFF3D006A),
         primaryContainer = Color(0xFF53008E),
         onPrimaryContainer = Color(0xFFEDDBFF)
+    ),
+    // Morandi palette (low saturation, dusty tones)
+    AccentColor.SAGE to darkColorScheme(
+        primary = Color(0xFFA9BFAE),
+        onPrimary = Color(0xFF1B3320),
+        primaryContainer = Color(0xFF3E5142),
+        onPrimaryContainer = Color(0xFFDDEADF)
+    ),
+    AccentColor.DUSTY_BLUE to darkColorScheme(
+        primary = Color(0xFFA5C2D2),
+        onPrimary = Color(0xFF162A35),
+        primaryContainer = Color(0xFF3A5462),
+        onPrimaryContainer = Color(0xFFD9E9F2)
+    ),
+    AccentColor.TERRACOTTA to darkColorScheme(
+        primary = Color(0xFFE0B49F),
+        onPrimary = Color(0xFF3C1F14),
+        primaryContainer = Color(0xFF6E4331),
+        onPrimaryContainer = Color(0xFFF5E0D8)
     )
 )
 

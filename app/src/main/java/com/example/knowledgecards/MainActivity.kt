@@ -8,7 +8,9 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
@@ -186,7 +188,8 @@ class MainActivity : ComponentActivity() {
                 }
             }
         ) { padding ->
-            when (selectedTab) {
+            Box(modifier = Modifier.padding(padding)) {
+                when (selectedTab) {
                 MainTab.FLASHCARDS -> BrowseScreen(
                     viewModel = browseViewModel,
                     onOpenEditor = { editingCardId = it },
@@ -195,8 +198,16 @@ class MainActivity : ComponentActivity() {
 
                 MainTab.DIRECTORY -> DirectoryScreen(
                     viewModel = directoryViewModel,
-                    onOpenCard = { cardId ->
-                        browseViewModel.jumpTo(cardId)
+                    onOpenAll = {
+                        browseViewModel.setScope("", 0L)
+                        selectedTab = MainTab.FLASHCARDS
+                    },
+                    onOpenCategory = { scope, firstCardId ->
+                        browseViewModel.setScope(scope, firstCardId)
+                        selectedTab = MainTab.FLASHCARDS
+                    },
+                    onOpenCard = { scope, cardId ->
+                        browseViewModel.setScope(scope, cardId)
                         selectedTab = MainTab.FLASHCARDS
                     }
                 )
@@ -206,6 +217,7 @@ class MainActivity : ComponentActivity() {
                     onImport = { importTreeLauncher.launch(null) },
                     onExport = { exportTreeLauncher.launch(null) }
                 )
+                }
             }
         }
 

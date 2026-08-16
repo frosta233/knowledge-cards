@@ -18,9 +18,9 @@ import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -44,7 +44,6 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.knowledgecards.data.Card
-import com.example.knowledgecards.domain.CategoryTree
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -106,26 +105,29 @@ fun BrowseScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    val current = cards.getOrNull(pagerState.currentPage)
-                    Text(
-                        text = CategoryTree.breadcrumb(current?.path.orEmpty()),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        style = MaterialTheme.typography.titleMedium
-                    )
+    Column(modifier = Modifier.fillMaxSize()) {
+        TopAppBar(
+            title = {
+                val current = cards.getOrNull(pagerState.currentPage)
+                // Full path when it fits; ellipsis only if it would
+                // overflow the line (the row is free of other widgets now).
+                Text(
+                    text = current?.path?.ifBlank { "未分类" } ?: "闪卡",
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.titleMedium
+                )
+            },
+            actions = {
+                val scoped = viewModel.scopePath.collectAsStateWithLifecycle().value
+                if (scoped.isNotEmpty()) {
+                    TextButton(onClick = viewModel::clearScope) {
+                        Text("全部")
+                    }
                 }
-            )
-        }
-    ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
+            }
+        )
+        Box(modifier = Modifier.fillMaxSize()) {
             if (cards.isEmpty()) {
                 EmptyLibrary(onImport)
             } else {

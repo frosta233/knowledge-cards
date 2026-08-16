@@ -16,7 +16,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -39,7 +38,9 @@ import com.example.knowledgecards.domain.CategoryNode
 @Composable
 fun DirectoryScreen(
     viewModel: DirectoryViewModel,
-    onOpenCard: (Long) -> Unit
+    onOpenAll: () -> Unit,
+    onOpenCategory: (String, Long) -> Unit,
+    onOpenCard: (String, Long) -> Unit
 ) {
     val tree by viewModel.tree.collectAsStateWithLifecycle()
     val expanded by viewModel.expanded.collectAsStateWithLifecycle()
@@ -48,20 +49,45 @@ fun DirectoryScreen(
         viewModel.expandRoots(tree)
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("目录") }
-            )
-        }
-    ) { padding ->
+    Column(modifier = Modifier.fillMaxSize()) {
+        TopAppBar(title = { Text("目录") })
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
         ) {
+            item(key = "all") {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onOpenAll)
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "全部卡片",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(start = 8.dp)
+                    )
+                    Text(
+                        text = "${tree.sumOf { it.totalCards }}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+                }
+            }
             tree.forEach { node ->
-                renderNode(node, depth = 0, expanded = expanded, viewModel = viewModel, onOpenCard = onOpenCard)
+                renderNode(node, depth = 0, expanded = expanded, viewModel = viewModel,
+                    onOpenCategory = onOpenCategory, onOpenCard = onOpenCard)
             }
             if (tree.isEmpty()) {
                 item {
@@ -82,14 +108,17 @@ private fun androidx.compose.foundation.lazy.LazyListScope.renderNode(
     depth: Int,
     expanded: Set<String>,
     viewModel: DirectoryViewModel,
-    onOpenCard: (Long) -> Unit
+    onOpenCategory: (String, Long) -> Unit,
+    onOpenCard: (String, Long) -> Unit
 ) {
     val isExpanded = node.fullPath in expanded
     item(key = node.fullPath) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { viewModel.firstCardId(node)?.let(onOpenCard) }
+                .clickable {
+                    viewModel.firstCardId(node)?.let { onOpenCategory(node.fullPath, it) }
+                }
                 .padding(start = 12.dp + (depth * 20).dp, end = 16.dp, top = 10.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -128,14 +157,14 @@ private fun androidx.compose.foundation.lazy.LazyListScope.renderNode(
     }
     if (isExpanded) {
         node.children.forEach { child ->
-            renderNode(child, depth + 1, expanded, viewModel, onOpenCard)
+            renderNode(child, depth + 1, expanded, viewModel, onOpenCategory, onOpenCard)
         }
         node.cards.forEach { card ->
             item(key = "card-${card.id}") {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { onOpenCard(card.id) }
+                        .clickable { onOpenCard(card.path, card.id) }
                         .padding(start = 36.dp + (depth * 20).dp, end = 16.dp, top = 10.dp, bottom = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {

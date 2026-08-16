@@ -1,6 +1,7 @@
 package com.example.knowledgecards.ui.settings
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,7 +16,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -53,17 +53,11 @@ fun SettingsScreen(
         )
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("设置") }
-            )
-        }
-    ) { padding ->
+    Column(modifier = Modifier.fillMaxSize()) {
+        TopAppBar(title = { Text("设置") })
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp)
         ) {
@@ -88,13 +82,13 @@ fun SettingsScreen(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Row(modifier = Modifier.padding(top = 4.dp)) {
+            FlowRow(modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)) {
                 AccentColor.entries.forEach { color ->
                     FilterChip(
                         selected = settings.accentColor == color,
                         onClick = { viewModel.setAccentColor(color) },
                         label = { Text(color.label()) },
-                        modifier = Modifier.padding(end = 8.dp)
+                        modifier = Modifier.padding(end = 8.dp, bottom = 6.dp)
                     )
                 }
             }
@@ -135,7 +129,7 @@ fun SettingsScreen(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Row(modifier = Modifier.padding(top = 8.dp, bottom = 24.dp)) {
+            Row(modifier = Modifier.padding(top = 8.dp, bottom = 32.dp)) {
                 Button(
                     onClick = onImport,
                     modifier = Modifier.padding(end = 12.dp)
@@ -175,4 +169,7 @@ private fun AccentColor.label(): String = when (this) {
     AccentColor.BLUE -> "蓝色"
     AccentColor.ORANGE -> "橙色"
     AccentColor.PURPLE -> "紫色"
+    AccentColor.SAGE -> "莫兰迪绿"
+    AccentColor.DUSTY_BLUE -> "莫兰迪蓝"
+    AccentColor.TERRACOTTA -> "莫兰迪陶土"
 }

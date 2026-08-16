@@ -21,7 +21,10 @@ enum class ThemeMode { SYSTEM, LIGHT, DARK }
  * Accent color preference. SYSTEM follows the wallpaper dynamic color;
  * the presets are used when dynamic color is unavailable or unwanted.
  */
-enum class AccentColor { SYSTEM, GREEN, BLUE, ORANGE, PURPLE }
+enum class AccentColor {
+    SYSTEM, GREEN, BLUE, ORANGE, PURPLE,
+    SAGE, DUSTY_BLUE, TERRACOTTA
+}
 
 /** Immutable snapshot of all user settings and the browse progress. */
 data class AppSettings(

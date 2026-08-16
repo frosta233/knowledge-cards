@@ -24,6 +24,7 @@ import androidx.glance.layout.Column
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
 import androidx.glance.layout.fillMaxSize
+import androidx.glance.layout.fillMaxHeight
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
 import androidx.glance.layout.padding
@@ -42,7 +43,9 @@ internal data class WidgetState(
     val card: Card?,
     val index: Int,
     val total: Int,
-    val pathExpanded: Boolean
+    val pathExpanded: Boolean,
+    val accentColor: com.example.knowledgecards.domain.AccentColor =
+        com.example.knowledgecards.domain.AccentColor.SYSTEM
 )
 
 /**
@@ -93,7 +96,8 @@ class CardWidget : GlanceAppWidget() {
                     card = cards.getOrNull(currentIndex),
                     index = currentIndex,
                     total = cards.size,
-                    pathExpanded = settings.widgetPathExpanded
+                    pathExpanded = settings.widgetPathExpanded,
+                    accentColor = settings.accentColor
                 )
             }
         }
@@ -120,6 +124,33 @@ private fun CardWidgetContent(state: WidgetState) {
 
     val dark = (context.resources.configuration.uiMode and
         Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+
+    // Accent color follows the app setting (GlanceTheme colors are system-only).
+    val primaryColor: ColorProvider = when (state.accentColor) {
+        com.example.knowledgecards.domain.AccentColor.SYSTEM -> colors.primary
+        com.example.knowledgecards.domain.AccentColor.GREEN -> ColorProvider(
+            if (dark) Color(0xFF81C784) else Color(0xFF2E7D32)
+        )
+        com.example.knowledgecards.domain.AccentColor.BLUE -> ColorProvider(
+            if (dark) Color(0xFFAAC7FF) else Color(0xFF1565C0)
+        )
+        com.example.knowledgecards.domain.AccentColor.ORANGE -> ColorProvider(
+            if (dark) Color(0xFFFFB68C) else Color(0xFFE65100)
+        )
+        com.example.knowledgecards.domain.AccentColor.PURPLE -> ColorProvider(
+            if (dark) Color(0xFFD7B8FF) else Color(0xFF6A1B9A)
+        )
+        com.example.knowledgecards.domain.AccentColor.SAGE -> ColorProvider(
+            if (dark) Color(0xFFA9BFAE) else Color(0xFF6B7F6E)
+        )
+        com.example.knowledgecards.domain.AccentColor.DUSTY_BLUE -> ColorProvider(
+            if (dark) Color(0xFFA5C2D2) else Color(0xFF6E8A99)
+        )
+        com.example.knowledgecards.domain.AccentColor.TERRACOTTA -> ColorProvider(
+            if (dark) Color(0xFFE0B49F) else Color(0xFFB07B68)
+        )
+    }
+
     // Acrylic-style translucent panel (stable, no blur needed).
     val panelColor = if (dark) {
         Color(0x8C1C1C22) // ~55% black panel in dark mode
@@ -156,9 +187,9 @@ private fun CardWidgetContent(state: WidgetState) {
             text = pathText,
             maxLines = if (state.pathExpanded) 2 else 1,
             style = TextStyle(
-                fontSize = 12.sp,
+                fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
-                color = colors.primary
+                color = primaryColor
             ),
             modifier = GlanceModifier.clickable(
                 CardWidgetActions.broadcastAction(context, CardWidgetActions.ACTION_TOGGLE_PATH)
@@ -172,7 +203,7 @@ private fun CardWidgetContent(state: WidgetState) {
             text = card.title,
             maxLines = 2,
             style = TextStyle(
-                fontSize = 18.sp,
+                fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
                 color = colors.onSurface
             ),
@@ -186,14 +217,15 @@ private fun CardWidgetContent(state: WidgetState) {
         // 3) Scrollable body — Glance LazyColumn provides widget-internal
         //    scrolling for long card text (equivalent of a ScrollView).
         //    A concrete height is required (ListView can't use weights).
-        val bodyHeight = (size.height - 142.dp).coerceAtLeast(36.dp)
         LazyColumn(
-            modifier = GlanceModifier.fillMaxWidth().height(bodyHeight)
+            // match_parent in the column layout: ListView fills the remaining
+            // space so the paging row always sits at the bottom edge.
+            modifier = GlanceModifier.fillMaxWidth().fillMaxHeight()
         ) {
             items(listOf(card.content)) { body ->
                 Text(
                     text = body,
-                    style = TextStyle(fontSize = 14.sp, color = colors.onSurface),
+                    style = TextStyle(fontSize = 18.sp, color = colors.onSurface),
                     modifier = GlanceModifier.clickable(
                         CardWidgetActions.openCardAction(context, card.id)
                     )
@@ -213,6 +245,8 @@ private fun CardWidgetContent(state: WidgetState) {
             val prevEnabled = state.index > 0
             val nextEnabled = state.index < state.total - 1
             val disabledColor = ColorProvider(Color.White.copy(alpha = 0.45f))
+            val prevTextColor = if (prevEnabled) primaryColor else disabledColor
+            val nextTextColor = if (nextEnabled) primaryColor else disabledColor
             val prevAction = CardWidgetActions.broadcastAction(
                 context, CardWidgetActions.ACTION_PREV
             )
@@ -222,9 +256,9 @@ private fun CardWidgetContent(state: WidgetState) {
             Text(
                 text = "◀ 上一张",
                 style = TextStyle(
-                    fontSize = 13.sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Medium,
-                    color = if (prevEnabled) colors.primary else disabledColor
+                    color = prevTextColor
                 ),
                 modifier = if (prevEnabled) {
                     GlanceModifier
@@ -237,15 +271,15 @@ private fun CardWidgetContent(state: WidgetState) {
             Spacer(GlanceModifier.fillMaxWidth().defaultWeight())
             Text(
                 text = "${state.index + 1} / ${state.total}",
-                style = TextStyle(fontSize = 13.sp, color = colors.onSurface)
+                style = TextStyle(fontSize = 16.sp, color = colors.onSurface)
             )
             Spacer(GlanceModifier.fillMaxWidth().defaultWeight())
             Text(
                 text = "下一张 ▶",
                 style = TextStyle(
-                    fontSize = 13.sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Medium,
-                    color = if (nextEnabled) colors.primary else disabledColor
+                    color = nextTextColor
                 ),
                 modifier = if (nextEnabled) {
                     GlanceModifier
