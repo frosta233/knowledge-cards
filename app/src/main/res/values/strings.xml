@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">知识闪卡</string>
+    <string name="widget_name">知识闪卡</string>
+    <string name="widget_description">显示当前知识卡片，可翻卡与展开路径</string>
+</resources>
