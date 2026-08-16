@@ -75,7 +75,7 @@ class EditorViewModel(
                 existing.copy(
                     title = title.value.trim().ifEmpty { existing.title },
                     content = content.value,
-                    path = path.value.trim().trim('/'),
+                    path = com.example.knowledgecards.data.normalizePath(path.value),
                     updatedAt = System.currentTimeMillis()
                 )
             )

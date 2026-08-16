@@ -8,8 +8,11 @@ import org.junit.Test
 
 class MarkdownParserTest {
 
-    private fun parse(content: String, fileName: String = "麻黄汤.md") =
-        MarkdownParser.parse(MarkdownFile(fileName, content))
+    private fun parse(
+        content: String,
+        fileName: String = "麻黄汤.md",
+        relativePath: String = ""
+    ) = MarkdownParser.parse(MarkdownFile(fileName, content, relativePath))
 
     @Test
     fun `parses path line with Chinese prefix`() {
@@ -107,5 +110,34 @@ class MarkdownParserTest {
     fun `sanitizeForFileName escapes illegal characters`() {
         assertEquals("a_b_c", MarkdownParser.sanitizeForFileName("a/b\\c"))
         assertEquals("untitled", MarkdownParser.sanitizeForFileName(""))
+    }
+
+    @Test
+    fun `folder position becomes the category`() {
+        val card = parse("组成：麻黄。", fileName = "麻黄汤.md", relativePath = "方剂学/解表剂/辛温解表")
+        assertEquals("方剂学/解表剂/辛温解表", card.path)
+    }
+
+    @Test
+    fun `folder position wins over legacy path declaration`() {
+        val card = parse(
+            "路径: 旧分类/甲\n# 麻黄汤\n组成。",
+            fileName = "麻黄汤.md",
+            relativePath = "方剂学/解表剂"
+        )
+        assertEquals("方剂学/解表剂", card.path)
+        assertTrue(!card.content.contains("路径:"))
+    }
+
+    @Test
+    fun `root level file falls back to legacy declaration`() {
+        val card = parse("路径: 方剂学/解表剂\n# 麻黄汤\n组成。", fileName = "麻黄汤.md")
+        assertEquals("方剂学/解表剂", card.path)
+    }
+
+    @Test
+    fun `root level file without declaration is uncategorized`() {
+        val card = parse("# 笔记\n内容", fileName = "笔记.md")
+        assertEquals("", card.path)
     }
 }

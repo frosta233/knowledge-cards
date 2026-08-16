@@ -65,6 +65,7 @@ dependencies {
     implementation(libs.datastore.preferences)
     implementation(libs.glance.appwidget)
     implementation(libs.documentfile)
+    implementation(libs.commons.compress)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

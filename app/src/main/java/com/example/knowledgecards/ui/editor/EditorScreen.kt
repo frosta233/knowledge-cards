@@ -175,11 +175,55 @@ private fun CategoryPickerDialog(
     onConfirm: (String) -> Unit
 ) {
     var selected by remember { mutableStateOf(current) }
+    var showNew by remember { mutableStateOf(false) }
+    var newPath by remember { mutableStateOf("") }
+    if (showNew) {
+        AlertDialog(
+            onDismissRequest = { showNew = false },
+            title = { Text("新建分类") },
+            text = {
+                OutlinedTextField(
+                    value = newPath,
+                    onValueChange = { newPath = it },
+                    singleLine = true,
+                    label = { Text("完整路径，如 方剂学/解表剂") },
+                    placeholder = { Text("用 / 分隔层级") }
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val clean = newPath.trim().trim('/')
+                    if (clean.isNotEmpty()) {
+                        selected = clean
+                        newPath = ""
+                        showNew = false
+                    }
+                }) { Text("确定") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showNew = false }) { Text("取消") }
+            }
+        )
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("选择分类") },
         text = {
             Column {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showNew = true }
+                        .padding(vertical = 6.dp)
+                ) {
+                    Text(
+                        text = "＋ 新建分类…",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(start = 4.dp)
+                    )
+                }
                 val options = listOf("") + categories
                 options.forEach { option ->
                     Row(

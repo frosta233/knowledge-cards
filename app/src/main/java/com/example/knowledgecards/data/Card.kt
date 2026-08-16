@@ -30,7 +30,8 @@ const val UNCATEGORIZED = "未分类"
 
 /** Normalizes a raw path string to a canonical slash-separated form. */
 fun normalizePath(raw: String): String =
-    raw.split('/', '\\')
+    raw.replace('／', '/')
+        .split('/', '\\')
         .map { it.trim() }
         .filter { it.isNotEmpty() }
         .joinToString("/")

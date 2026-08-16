@@ -2,18 +2,6 @@ package com.example.knowledgecards.data.import
 
 import com.example.knowledgecards.data.normalizePath
 
-/** A raw Markdown file discovered by the importer. */
-data class MarkdownFile(
-    /** File name including extension, e.g. "麻黄汤.md". */
-    val fileName: String,
-    /** Full text content of the file. */
-    val content: String
-) {
-    /** Title derived from the file name (without extension). */
-    val titleFromName: String
-        get() = fileName.substringBeforeLast('.').trim()
-}
-
 /** A card parsed from a Markdown file. */
 data class ParsedCard(
     val title: String,
@@ -37,11 +25,18 @@ object MarkdownParser {
     fun parse(file: MarkdownFile): ParsedCard {
         val lines = file.content.lines()
         val pathLineIndex = lines.indexOfFirst { isPathLine(it) }
-        val path = if (pathLineIndex >= 0) {
+
+        // Category comes from the folder position relative to the import root.
+        // A legacy `路径:` declaration is only honored for files directly in
+        // the root (keeps old flat backups working); the line itself is still
+        // stripped from the body either way.
+        val folderPath = normalizePath(file.relativePath)
+        val declaredPath = if (pathLineIndex >= 0) {
             normalizePath(extractPathValue(lines[pathLineIndex]))
         } else {
             ""
         }
+        val path = if (folderPath.isNotEmpty()) folderPath else declaredPath
 
         // Body = everything after the path line.
         val bodyLines = if (pathLineIndex >= 0) lines.drop(pathLineIndex + 1) else lines

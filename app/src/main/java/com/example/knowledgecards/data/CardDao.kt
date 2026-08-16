@@ -42,4 +42,32 @@ interface CardDao {
 
     @Query("DELETE FROM cards WHERE id = :id")
     suspend fun deleteById(id: Long)
+
+    // ---- Category ordering ----
+
+    @Query("SELECT * FROM category_order")
+    fun observeCategoryOrders(): Flow<List<CategoryOrder>>
+
+    @Query("SELECT * FROM category_order")
+    suspend fun getAllCategoryOrders(): List<CategoryOrder>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertCategoryOrder(order: CategoryOrder)
+
+    @Query("DELETE FROM category_order WHERE path = :path")
+    suspend fun deleteCategoryOrder(path: String)
+
+    // ---- Batch path operations for category management ----
+
+    @Query("UPDATE cards SET path = :newPath WHERE path = :oldPath")
+    suspend fun renameExactPath(oldPath: String, newPath: String)
+
+    @Query("UPDATE cards SET path = :newPrefix || SUBSTR(path, :oldPrefixLength + 1) WHERE path = :oldPrefix OR path LIKE :oldPrefix || '/%'")
+    suspend fun renamePathPrefix(oldPrefix: String, newPrefix: String, oldPrefixLength: Int)
+
+    @Query("UPDATE cards SET path = '' WHERE path = :path OR path LIKE :path || '/%'")
+    suspend fun clearPath(path: String)
+
+    @Query("DELETE FROM cards WHERE path = :path OR path LIKE :path || '/%'")
+    suspend fun deleteByPath(path: String)
 }

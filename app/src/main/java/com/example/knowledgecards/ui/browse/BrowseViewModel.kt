@@ -7,6 +7,7 @@ import com.example.knowledgecards.KnowledgeCardsApp
 import com.example.knowledgecards.data.Card
 import com.example.knowledgecards.data.CardRepository
 import com.example.knowledgecards.data.SortMode
+import com.example.knowledgecards.data.UNCATEGORIZED
 import com.example.knowledgecards.data.isPathWithin
 import com.example.knowledgecards.domain.ProgressStore
 import com.example.knowledgecards.widget.WidgetUpdater
@@ -54,10 +55,12 @@ class BrowseViewModel(application: Application) : AndroidViewModel(application) 
         .flatMapLatest { (settings, scope) ->
             repository.observeCards(settings.sortMode)
                 .map { all ->
-                    val cards = if (scope.isEmpty()) {
-                        all
-                    } else {
-                        all.filter { isPathWithin(scope, it.path) }
+                    val cards = when {
+                        scope.isEmpty() -> all
+                        // The 未分类 root node is a display name; its cards
+                        // have an empty path.
+                        scope == UNCATEGORIZED -> all.filter { it.path.isEmpty() }
+                        else -> all.filter { isPathWithin(scope, it.path) }
                     }
                     BrowseUiState(cards, settings.fontSizeSp, settings.sortMode)
                 }

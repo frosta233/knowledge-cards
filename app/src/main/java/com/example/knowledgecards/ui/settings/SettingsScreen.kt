@@ -35,6 +35,7 @@ import com.example.knowledgecards.domain.ThemeMode
 fun SettingsScreen(
     viewModel: SettingsViewModel,
     onImport: () -> Unit,
+    onImportArchive: () -> Unit,
     onExport: () -> Unit
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
@@ -125,7 +126,7 @@ fun SettingsScreen(
 
             SettingSectionTitle("数据")
             Text(
-                text = "从 Markdown 文件夹批量导入卡片，或把全部卡片导出为备份。",
+                text = "导入：选择 Markdown 文件夹，或 .zip / .tar 压缩包（卡片分类按文件夹层级生成）。导出：全部卡片备份为文件夹。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -134,7 +135,13 @@ fun SettingsScreen(
                     onClick = onImport,
                     modifier = Modifier.padding(end = 12.dp)
                 ) {
-                    Text("导入 Markdown 文件夹")
+                    Text("导入文件夹")
+                }
+                OutlinedButton(
+                    onClick = onImportArchive,
+                    modifier = Modifier.padding(end = 12.dp)
+                ) {
+                    Text("导入压缩包")
                 }
                 OutlinedButton(
                     onClick = onExport,

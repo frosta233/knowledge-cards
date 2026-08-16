@@ -30,7 +30,12 @@ data class CategoryNode(
  */
 object CategoryTree {
 
-    fun build(cards: List<Card>): List<CategoryNode> {
+    /**
+     * Builds the tree from cards, ordering sibling nodes by their manual
+     * [orders] position when present (falling back to name order after all
+     * manually ordered siblings).
+     */
+    fun build(cards: List<Card>, orders: Map<String, Int> = emptyMap()): List<CategoryNode> {
         data class MutableNode(
             val name: String,
             val fullPath: String,
@@ -62,14 +67,26 @@ object CategoryTree {
 
         fun freeze(node: MutableNode): CategoryNode {
             val children = node.children.values
-                .sortedWith(compareBy({ it.name }, { it.fullPath }))
+                .sortedWith(
+                    compareBy<MutableNode>(
+                        { orders[it.fullPath] ?: Int.MAX_VALUE },
+                        { it.name },
+                        { it.fullPath }
+                    )
+                )
                 .map { freeze(it) }
             val cards = node.cards.sortedBy { it.title }
             return CategoryNode(node.name, node.fullPath, children, cards)
         }
 
         return roots.values
-            .sortedWith(compareBy({ it.name }, { it.fullPath }))
+            .sortedWith(
+                compareBy<MutableNode>(
+                    { orders[it.fullPath] ?: Int.MAX_VALUE },
+                    { it.name },
+                    { it.fullPath }
+                )
+            )
             .map { freeze(it) }
     }
 

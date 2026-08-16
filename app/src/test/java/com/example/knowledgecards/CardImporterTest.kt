@@ -61,6 +61,50 @@ class CardImporterTest {
             cards.removeAll { it.id == id }
             flow.value = cards.toList()
         }
+
+        private val orders = mutableMapOf<String, Int>()
+        private val orderFlow = MutableStateFlow(mapOf<String, Int>())
+
+        override fun observeCategoryOrders(): Flow<List<com.example.knowledgecards.data.CategoryOrder>> =
+            orderFlow.map { m -> m.map { (k, v) -> com.example.knowledgecards.data.CategoryOrder(k, v) } }
+
+        override suspend fun getCategoryOrders(): List<com.example.knowledgecards.data.CategoryOrder> =
+            orders.map { (k, v) -> com.example.knowledgecards.data.CategoryOrder(k, v) }
+
+        override suspend fun setCategoryOrder(path: String, position: Int) {
+            orders[path] = position
+            orderFlow.value = orders.toMap()
+        }
+
+        override suspend fun removeCategoryOrder(path: String) {
+            orders.remove(path)
+            orderFlow.value = orders.toMap()
+        }
+
+        override suspend fun renameCategory(oldPrefix: String, newPrefix: String) {
+            val renamed = cards.map { c ->
+                if (c.path == oldPrefix) c.copy(path = newPrefix)
+                else if (c.path.startsWith("$oldPrefix/")) c.copy(path = newPrefix + c.path.removePrefix(oldPrefix))
+                else c
+            }
+            cards.clear()
+            cards.addAll(renamed)
+            flow.value = cards.toList()
+        }
+
+        override suspend fun clearCategory(path: String) {
+            val cleared = cards.map { c ->
+                if (c.path == path || c.path.startsWith("$path/")) c.copy(path = "") else c
+            }
+            cards.clear()
+            cards.addAll(cleared)
+            flow.value = cards.toList()
+        }
+
+        override suspend fun deleteCategory(path: String) {
+            cards.removeAll { it.path == path || it.path.startsWith("$path/") }
+            flow.value = cards.toList()
+        }
     }
 
     private fun md(name: String, content: String) = MarkdownFile(name, content)

@@ -9,9 +9,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Exports the library as Markdown files (one file per card) into a SAF folder.
- * The written files follow the same import spec (path declaration on line 1,
- * optional heading, body), so the export can be re-imported as a backup.
+ * Exports the library as Markdown files (one file per card) into a SAF folder,
+ * mirroring the import layout: the category becomes the folder structure and
+ * the file body starts with an optional heading — no path declaration needed.
+ * The exported folder can be re-imported as a backup.
  */
 object CardExporter {
 
@@ -27,14 +28,12 @@ object CardExporter {
             var failed = 0
             for (card in cards) {
                 try {
+                    val dir = ensureDirectory(context, root, card.path)
                     val displayName = "${MarkdownParser.sanitizeForFileName(card.title)}.md"
-                    val file = root.findFile(displayName)
-                        ?: root.createFile("text/markdown", displayName)
+                    val file = dir.findFile(displayName)
+                        ?: dir.createFile("text/markdown", displayName)
                     if (file != null) {
                         val text = buildString {
-                            if (card.path.isNotEmpty()) {
-                                appendLine("路径: ${card.path}")
-                            }
                             appendLine("# ${card.title}")
                             append(card.content)
                         }
@@ -51,4 +50,15 @@ object CardExporter {
             }
             ExportResult(exported, failed)
         }
+
+    private fun ensureDirectory(context: Context, root: DocumentFile, path: String): DocumentFile {
+        var dir = root
+        for (segment in path.split('/').filter { it.isNotBlank() }) {
+            val next = dir.findFile(segment)
+                ?: dir.createDirectory(segment)
+                ?: return dir
+            dir = next
+        }
+        return dir
+    }
 }

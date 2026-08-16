@@ -76,6 +76,11 @@ class MainActivity : ComponentActivity() {
             if (uri != null) importFromTree(uri)
         }
 
+    private val archiveLauncher =
+        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            if (uri != null) importArchive(uri)
+        }
+
     private val exportTreeLauncher =
         registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
             if (uri != null) {
@@ -116,6 +121,41 @@ class MainActivity : ComponentActivity() {
         if (intent.hasExtra(CardWidgetActions.EXTRA_CARD_ID)) {
             val cardId = intent.getLongExtra(CardWidgetActions.EXTRA_CARD_ID, 0L)
             if (cardId > 0) browseViewModel.jumpTo(cardId)
+        }
+    }
+
+    private fun importArchive(uri: Uri) {
+        if (!com.example.knowledgecards.data.import.ArchiveImporter.supports(uri)) {
+            importingState = ImportingState.DONE(
+                ImportResult(
+                    failed = listOf(
+                        uri.lastPathSegment.orEmpty() to
+                            com.example.knowledgecards.data.import.ArchiveImporter.unsupportedReason(uri)
+                    )
+                )
+            )
+            return
+        }
+        lifecycleScope.launch {
+            importingState = ImportingState.RUNNING
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    val container = (application as KnowledgeCardsApp).container
+                    val files = com.example.knowledgecards.data.import.ArchiveImporter.extract(
+                        this@MainActivity, uri
+                    )
+                    CardImporter(container.cardRepository).import(files)
+                }
+            }
+            importingState = result.fold(
+                onSuccess = { ImportingState.DONE(it) },
+                onFailure = {
+                    ImportingState.DONE(
+                        ImportResult(failed = listOf("导入失败" to (it.message ?: "未知错误")))
+                    )
+                }
+            )
+            WidgetUpdater.update(this@MainActivity)
         }
     }
 
@@ -196,6 +236,11 @@ class MainActivity : ComponentActivity() {
                 MainTab.SETTINGS -> SettingsScreen(
                     viewModel = settingsViewModel,
                     onImport = { importTreeLauncher.launch(null) },
+                    onImportArchive = {
+                        archiveLauncher.launch(
+                            arrayOf("application/zip", "application/x-tar")
+                        )
+                    },
                     onExport = { exportTreeLauncher.launch(null) }
                 )
                 }
