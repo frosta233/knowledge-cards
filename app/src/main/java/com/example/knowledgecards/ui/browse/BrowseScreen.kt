@@ -1,5 +1,6 @@
 package com.example.knowledgecards.ui.browse
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -44,6 +45,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.knowledgecards.data.Card
+import com.example.knowledgecards.ui.theme.appTopAppBarColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,13 +58,20 @@ fun BrowseScreen(
     val cards = ui.cards
     val pagerState = rememberPagerState(pageCount = { cards.size })
 
-    // Initial position: start card or last restored progress.
+    // Initial position: start card or last restored progress. When the screen
+    // is recomposed with state already restored (tab switch), still realign
+    // with the shared progress — the widget may have flipped cards meanwhile.
     var initialized by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(cards) {
-        if (cards.isNotEmpty() && !initialized) {
-            val index = viewModel.initialIndex(cards)
-            if (index != pagerState.currentPage) pagerState.scrollToPage(index)
-            initialized = true
+        if (cards.isNotEmpty()) {
+            if (!initialized) {
+                val index = viewModel.initialIndex(cards)
+                if (index != pagerState.currentPage) pagerState.scrollToPage(index)
+                initialized = true
+            }
+            viewModel.resumeToSharedProgress(
+                cards.getOrNull(pagerState.currentPage)?.id ?: 0L
+            )
         }
     }
 
@@ -93,20 +102,31 @@ fun BrowseScreen(
             .collect { page -> cards.getOrNull(page)?.let { viewModel.onCardShown(it.id) } }
     }
 
-    // Save progress when leaving the screen (spec: save on leaving browse).
+    // Save progress when leaving the screen (spec: save on leaving browse);
+    // on resume, realign with the shared progress (widget may have moved it).
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_PAUSE) {
-                cards.getOrNull(pagerState.currentPage)?.let { viewModel.onCardShown(it.id) }
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> {
+                    val state = viewModel.uiState.value
+                    viewModel.resumeToSharedProgress(
+                        state.cards.getOrNull(pagerState.currentPage)?.id ?: 0L
+                    )
+                }
+                Lifecycle.Event.ON_PAUSE -> {
+                    cards.getOrNull(pagerState.currentPage)?.let { viewModel.onCardShown(it.id) }
+                }
+                else -> Unit
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         TopAppBar(
+            colors = appTopAppBarColors(),
             title = {
                 val current = cards.getOrNull(pagerState.currentPage)
                 // Full path when it fits; ellipsis only if it would
@@ -232,7 +252,8 @@ private fun EmptyLibrary(onImport: () -> Unit) {
     ) {
         Text(
             text = "还没有卡片",
-            style = MaterialTheme.typography.titleLarge
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface
         )
         Text(
             text = "在「设置」页或点击下方按钮导入\n选择包含 .md 文件的文件夹，每个文件是一张卡片",

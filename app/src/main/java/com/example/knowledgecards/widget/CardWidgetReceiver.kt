@@ -6,6 +6,7 @@ import android.content.Intent
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import com.example.knowledgecards.KnowledgeCardsApp
+import com.example.knowledgecards.domain.cardsInBrowseOrder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -58,7 +59,7 @@ class CardWidgetReceiver : GlanceAppWidgetReceiver() {
                 val container = (context.applicationContext as KnowledgeCardsApp).container
                 val store = container.progressStore
                 val settings = store.current()
-                val cards = container.cardRepository.getCards(settings.sortMode)
+                val cards = container.cardRepository.cardsInBrowseOrder(settings.sortMode)
                 if (cards.isEmpty()) return@launch
                 val currentIndex =
                     cards.indexOfFirst { it.id == settings.lastCardId }.let { if (it >= 0) it else 0 }

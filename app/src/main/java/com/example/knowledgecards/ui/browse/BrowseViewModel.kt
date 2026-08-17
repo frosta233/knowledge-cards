@@ -80,13 +80,11 @@ class BrowseViewModel(application: Application) : AndroidViewModel(application) 
     private fun orderByTree(
         cards: List<Card>,
         orders: List<com.example.knowledgecards.data.CategoryOrder>
-    ): List<Card> {
-        val orderMap = orders.associate { it.path to it.position }
-        val roots = CategoryTree.build(cards, orderMap)
-        val ids = CategoryTree.flattenCardIds(roots)
-        val byId = cards.associateBy { it.id }
-        return ids.mapNotNull { byId[it] }
-    }
+    ): List<Card> =
+        CategoryTree.orderCardsByTree(
+            cards,
+            orders.associate { it.path to it.position }
+        )
 
     /**
      * Index to show on first composition: the requested start card, else a
@@ -124,6 +122,21 @@ class BrowseViewModel(application: Application) : AndroidViewModel(application) 
 
     fun consumeJump() {
         _pendingJump.value = 0L
+    }
+
+    /**
+     * Aligns with the shared progress when the browse screen returns to the
+     * foreground (hot start / tab switch): if the widget flipped cards while
+     * the app was in the background, jump to the card it selected. No-op when
+     * the progress already matches [currentCardId] (the card on screen).
+     */
+    fun resumeToSharedProgress(currentCardId: Long) {
+        viewModelScope.launch {
+            val lastId = store.current().lastCardId
+            if (lastId > 0L && lastId != currentCardId) {
+                _pendingJump.value = lastId
+            }
+        }
     }
 
     /** Called whenever a card becomes the visible page (settled or paused). */

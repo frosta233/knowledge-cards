@@ -5,15 +5,29 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.knowledgecards.KnowledgeCardsApp
 import com.example.knowledgecards.data.SortMode
+import com.example.knowledgecards.data.UNCATEGORIZED
 import com.example.knowledgecards.domain.CategoryNode
 import com.example.knowledgecards.domain.CategoryTree
+import com.example.knowledgecards.domain.TreeCard
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+
+/** A category whose name matches the search query. */
+data class CategoryHit(
+    val name: String,
+    val fullPath: String,
+    val totalCards: Int
+)
+
+/** Search results: matching categories and matching cards. */
+data class SearchResult(
+    val categories: List<CategoryHit> = emptyList(),
+    val cards: List<TreeCard> = emptyList()
+)
 
 class DirectoryViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -32,6 +46,113 @@ class DirectoryViewModel(application: Application) : AndroidViewModel(applicatio
     /** Full paths of expanded nodes; root level starts expanded. */
     val expanded: MutableStateFlow<Set<String>> =
         MutableStateFlow(emptySet())
+
+    // ---- Search ----
+
+    val searchQuery: MutableStateFlow<String> = MutableStateFlow("")
+
+    val searchResults: StateFlow<SearchResult> =
+        combine(searchQuery, tree) { query, tree ->
+            val q = query.trim()
+            if (q.isEmpty()) return@combine SearchResult()
+            val categories = mutableListOf<CategoryHit>()
+            val cards = mutableListOf<TreeCard>()
+            fun walk(nodes: List<CategoryNode>) {
+                for (node in nodes) {
+                    if (node.name.contains(q)) {
+                        categories += CategoryHit(node.name, node.fullPath, node.totalCards)
+                    }
+                    cards += node.cards.filter { it.title.contains(q) }
+                    walk(node.children)
+                }
+            }
+            walk(tree)
+            SearchResult(categories, cards)
+        }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SearchResult())
+
+    /** Card id to highlight in the tree (empty = none); set by search reveals. */
+    val highlightCardId: MutableStateFlow<Long> = MutableStateFlow(0L)
+
+    /** Category path to highlight in the tree ("" = none); set by search reveals. */
+    val highlightCategoryPath: MutableStateFlow<String> = MutableStateFlow("")
+
+    /** Category path the tree should scroll to ("" = none); consumed by UI. */
+    val revealCategoryPath: MutableStateFlow<String> = MutableStateFlow("")
+
+    fun setSearchQuery(query: String) {
+        searchQuery.value = query
+    }
+
+    /** Clears the highlighted card/category (any tree interaction does this). */
+    fun clearHighlight() {
+        highlightCardId.value = 0L
+        highlightCategoryPath.value = ""
+    }
+
+    /**
+     * Reveals a matched category in the tree: expands its ancestors and its
+     * whole subtree, so it displays exactly like the tree itself, and asks
+     * the UI to scroll to it.
+     */
+    fun revealCategory(fullPath: String) {
+        expanded.value = expanded.value + ancestorsOf(fullPath)
+        expandSubtree(tree.value, fullPath)
+        highlightCardId.value = 0L
+        highlightCategoryPath.value = fullPath
+        revealCategoryPath.value = fullPath
+        closeSearch()
+    }
+
+    fun consumeRevealCategory() {
+        revealCategoryPath.value = ""
+    }
+
+    /**
+     * Reveals a matched card in the tree: expands the card's direct parent
+     * (ancestors + whole parent subtree) and highlights the card row.
+     */
+    fun revealCard(card: TreeCard) {
+        val parentPath = card.path.ifEmpty { UNCATEGORIZED }
+        expanded.value = expanded.value + ancestorsOf(parentPath)
+        expandSubtree(tree.value, parentPath)
+        highlightCategoryPath.value = ""
+        highlightCardId.value = card.id
+        closeSearch()
+    }
+
+    fun closeSearch() {
+        searchQuery.value = ""
+    }
+
+    private fun ancestorsOf(path: String): List<String> {
+        val result = mutableListOf<String>()
+        var acc = ""
+        for (part in path.split('/').filter { it.isNotBlank() }) {
+            acc = if (acc.isEmpty()) part else "$acc/$part"
+            result += acc
+        }
+        return result
+    }
+
+    private fun expandSubtree(roots: List<CategoryNode>, path: String) {
+        val node = findNode(roots, path) ?: return
+        val toExpand = mutableListOf<String>()
+        fun collect(n: CategoryNode) {
+            toExpand += n.fullPath
+            n.children.forEach { collect(it) }
+        }
+        collect(node)
+        expanded.value = expanded.value + toExpand
+    }
+
+    private fun findNode(nodes: List<CategoryNode>, path: String): CategoryNode? {
+        for (node in nodes) {
+            if (node.fullPath == path) return node
+            findNode(node.children, path)?.let { return it }
+        }
+        return null
+    }
 
     fun toggle(path: String) {
         expanded.value = expanded.value.takeIf { path in it }

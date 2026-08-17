@@ -100,6 +100,18 @@ object CategoryTree {
             node.cards.map { it.id } + flattenCardIds(node.children)
         }
 
+    /**
+     * Cards flattened in tree display order: depth-first, siblings ordered by
+     * their manual position (then name). This is the single source of truth
+     * for the DIRECTORY browse sequence, shared by the browse screen and the
+     * widget so both always agree on the current card and its neighbours.
+     */
+    fun orderCardsByTree(cards: List<Card>, orders: Map<String, Int>): List<Card> {
+        val ids = flattenCardIds(build(cards, orders))
+        val byId = cards.associateBy { it.id }
+        return ids.mapNotNull { byId[it] }
+    }
+
     /** All card ids under the category with [path], in display order. */
     fun collectCardIds(cards: List<Card>, path: String): List<Long> {
         val roots = build(cards)

@@ -10,6 +10,7 @@ import com.example.knowledgecards.data.export.CardExporter
 import com.example.knowledgecards.domain.AccentColor
 import com.example.knowledgecards.domain.AppSettings
 import com.example.knowledgecards.domain.ThemeMode
+import com.example.knowledgecards.widget.WidgetUpdater
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -31,19 +32,39 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     val exportResult: StateFlow<Pair<Int, Int>?> = _exportResult
 
     fun setThemeMode(mode: ThemeMode) {
-        viewModelScope.launch { store.setThemeMode(mode) }
+        viewModelScope.launch {
+            store.setThemeMode(mode)
+            WidgetUpdater.update(getApplication())
+        }
     }
 
     fun setAccentColor(color: com.example.knowledgecards.domain.AccentColor) {
-        viewModelScope.launch { store.setAccentColor(color) }
+        viewModelScope.launch {
+            store.setAccentColor(color)
+            WidgetUpdater.update(getApplication())
+        }
     }
 
     fun setSortMode(mode: SortMode) {
-        viewModelScope.launch { store.setSortMode(mode) }
+        viewModelScope.launch {
+            store.setSortMode(mode)
+            // The widget shares the browse order: re-render it immediately so
+            // its card sequence and counter match the app's new order.
+            WidgetUpdater.update(getApplication())
+        }
     }
 
     fun setFontSize(sp: Float) {
         viewModelScope.launch { store.setFontSize(sp) }
+    }
+
+    fun setWidgetFontSize(sp: Float) {
+        viewModelScope.launch {
+            store.setWidgetFontSize(sp)
+            // The widget has its own font size setting: re-render it so the
+            // change shows up immediately.
+            WidgetUpdater.update(getApplication())
+        }
     }
 
     fun exportTo(treeUri: Uri) {

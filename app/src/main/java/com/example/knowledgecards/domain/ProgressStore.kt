@@ -33,6 +33,7 @@ data class AppSettings(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val accentColor: AccentColor = AccentColor.SYSTEM,
     val fontSizeSp: Float = 18f,
+    val widgetFontSizeSp: Float = 18f,
     val widgetPathExpanded: Boolean = false
 )
 
@@ -48,16 +49,21 @@ class ProgressStore(private val context: Context) {
         val THEME_MODE = intPreferencesKey("theme_mode")
         val ACCENT_COLOR = intPreferencesKey("accent_color")
         val FONT_SIZE = floatPreferencesKey("font_size_sp")
+        val WIDGET_FONT_SIZE = floatPreferencesKey("widget_font_size_sp")
         val WIDGET_PATH_EXPANDED = booleanPreferencesKey("widget_path_expanded")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { prefs ->
         AppSettings(
             lastCardId = prefs[Keys.LAST_CARD_ID] ?: 0L,
-            sortMode = SortMode.entries.getOrElse(prefs[Keys.SORT_MODE] ?: 0) { SortMode.DIRECTORY },
+            // 浏览顺序切换已从设置页移除，当前固定为目录顺序（与目录页一致）。
+            // 排序后端（SortMode / setSortMode / cardsInBrowseOrder）保留，
+            // 未来恢复多排序方式时改回 prefs[Keys.SORT_MODE] 读取即可。
+            sortMode = SortMode.DIRECTORY,
             themeMode = ThemeMode.entries.getOrElse(prefs[Keys.THEME_MODE] ?: 0) { ThemeMode.SYSTEM },
             accentColor = AccentColor.entries.getOrElse(prefs[Keys.ACCENT_COLOR] ?: 0) { AccentColor.SYSTEM },
             fontSizeSp = prefs[Keys.FONT_SIZE] ?: 18f,
+            widgetFontSizeSp = prefs[Keys.WIDGET_FONT_SIZE] ?: 18f,
             widgetPathExpanded = prefs[Keys.WIDGET_PATH_EXPANDED] ?: false
         )
     }
@@ -82,6 +88,10 @@ class ProgressStore(private val context: Context) {
 
     suspend fun setFontSize(sp: Float) {
         context.dataStore.edit { it[Keys.FONT_SIZE] = sp }
+    }
+
+    suspend fun setWidgetFontSize(sp: Float) {
+        context.dataStore.edit { it[Keys.WIDGET_FONT_SIZE] = sp }
     }
 
     suspend fun setWidgetPathExpanded(expanded: Boolean) {

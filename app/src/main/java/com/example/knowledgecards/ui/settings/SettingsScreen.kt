@@ -1,5 +1,6 @@
 package com.example.knowledgecards.ui.settings
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -15,20 +16,18 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.knowledgecards.data.SortMode
 import com.example.knowledgecards.domain.AccentColor
 import com.example.knowledgecards.domain.ThemeMode
+import com.example.knowledgecards.ui.theme.appTopAppBarColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,8 +53,8 @@ fun SettingsScreen(
         )
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        TopAppBar(title = { Text("设置") })
+    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
+        TopAppBar(colors = appTopAppBarColors(), title = { Text("设置") })
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -96,35 +95,28 @@ fun SettingsScreen(
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
 
-            SettingSectionTitle("浏览顺序")
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                RadioButton(
-                    selected = settings.sortMode == SortMode.DIRECTORY,
-                    onClick = { viewModel.setSortMode(SortMode.DIRECTORY) }
-                )
-                Text("目录顺序（与目录页一致）")
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                RadioButton(
-                    selected = settings.sortMode == SortMode.TITLE,
-                    onClick = { viewModel.setSortMode(SortMode.TITLE) }
-                )
-                Text("标题序（按标题排序）")
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                RadioButton(
-                    selected = settings.sortMode == SortMode.IMPORT,
-                    onClick = { viewModel.setSortMode(SortMode.IMPORT) }
-                )
-                Text("导入序（按导入先后）")
-            }
-
-            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
-
-            SettingSectionTitle("字号 ${settings.fontSizeSp.toInt()}sp")
+            SettingSectionTitle("正文字号 ${settings.fontSizeSp.toInt()}sp")
+            Text(
+                text = "主界面闪卡正文",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             Slider(
                 value = settings.fontSizeSp,
                 onValueChange = viewModel::setFontSize,
+                valueRange = 12f..28f,
+                steps = 15
+            )
+
+            SettingSectionTitle("微件字号 ${settings.widgetFontSizeSp.toInt()}sp")
+            Text(
+                text = "桌面微件正文",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Slider(
+                value = settings.widgetFontSizeSp,
+                onValueChange = viewModel::setWidgetFontSize,
                 valueRange = 12f..28f,
                 steps = 15
             )

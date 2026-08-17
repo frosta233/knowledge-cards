@@ -36,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.knowledgecards.data.UNCATEGORIZED
+import com.example.knowledgecards.ui.theme.appTopAppBarColors
 
 /** Card editor: title, content, and a path picker (categories are selected, not typed). */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -65,6 +66,7 @@ fun EditorScreen(
     Scaffold(
         topBar = {
             TopAppBar(
+                colors = appTopAppBarColors(),
                 title = { Text("编辑卡片") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -108,6 +110,7 @@ fun EditorScreen(
             Text(
                 text = "分类路径",
                 style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(top = 20.dp, bottom = 4.dp)
             )
             Row(

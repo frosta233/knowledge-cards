@@ -7,7 +7,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.activity.viewModels
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,11 +25,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -35,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
@@ -42,6 +47,7 @@ import com.example.knowledgecards.data.import.CardImporter
 import com.example.knowledgecards.data.import.ImportResult
 import com.example.knowledgecards.data.import.SafTreeScanner
 import com.example.knowledgecards.domain.AppSettings
+import com.example.knowledgecards.domain.ThemeMode
 import com.example.knowledgecards.ui.browse.BrowseScreen
 import com.example.knowledgecards.ui.browse.BrowseViewModel
 import com.example.knowledgecards.ui.directory.DirectoryScreen
@@ -102,6 +108,20 @@ class MainActivity : ComponentActivity() {
             val container = (application as KnowledgeCardsApp).container
             val settings by container.progressStore.settings
                 .collectAsStateWithLifecycle(initialValue = AppSettings())
+            // Make the system status/navigation bar icons follow the app theme
+            // (the XML theme always requests light icons, which are invisible
+            // on the dark accent-colored app bars).
+            val darkTheme = when (settings.themeMode) {
+                ThemeMode.SYSTEM -> isSystemInDarkTheme()
+                ThemeMode.LIGHT -> false
+                ThemeMode.DARK -> true
+            }
+            SideEffect {
+                WindowCompat.getInsetsController(window, window.decorView).apply {
+                    isAppearanceLightStatusBars = !darkTheme
+                    isAppearanceLightNavigationBars = !darkTheme
+                }
+            }
             KnowledgeCardsTheme(
                 themeMode = settings.themeMode,
                 accentColor = settings.accentColor
@@ -120,7 +140,15 @@ class MainActivity : ComponentActivity() {
     private fun handleWidgetIntent(intent: Intent) {
         if (intent.hasExtra(CardWidgetActions.EXTRA_CARD_ID)) {
             val cardId = intent.getLongExtra(CardWidgetActions.EXTRA_CARD_ID, 0L)
-            if (cardId > 0) browseViewModel.jumpTo(cardId)
+            if (cardId > 0) {
+                browseViewModel.jumpTo(cardId)
+                // Keep the shared progress in sync so the widget and the
+                // foreground-resume alignment both agree on the opened card.
+                lifecycleScope.launch {
+                    (application as KnowledgeCardsApp).container.progressStore
+                        .setLastCardId(cardId)
+                }
+            }
         }
     }
 
@@ -208,7 +236,11 @@ class MainActivity : ComponentActivity() {
         // Plain Column instead of Scaffold: each tab screen draws its own
         // TopAppBar with proper status-bar insets; a nested Scaffold would
         // double-apply insets and leave a blank strip on top.
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surface)
+        ) {
             Box(modifier = Modifier.fillMaxSize().weight(1f)) {
                 when (selectedTab) {
                 MainTab.FLASHCARDS -> BrowseScreen(
@@ -245,11 +277,21 @@ class MainActivity : ComponentActivity() {
                 )
                 }
             }
-            NavigationBar {
+            NavigationBar(
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+            ) {
                 MainTab.entries.forEach { tab ->
                     NavigationBarItem(
                         selected = selectedTab == tab,
                         onClick = { selectedTab = tab },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                            selectedTextColor = MaterialTheme.colorScheme.onPrimary,
+                            indicatorColor = MaterialTheme.colorScheme.primary,
+                            unselectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f),
+                            unselectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f)
+                        ),
                         icon = {
                             Icon(
                                 imageVector = when (tab) {

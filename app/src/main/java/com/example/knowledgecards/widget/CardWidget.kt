@@ -34,6 +34,7 @@ import androidx.glance.unit.ColorProvider
 import com.example.knowledgecards.KnowledgeCardsApp
 import com.example.knowledgecards.data.Card
 import com.example.knowledgecards.domain.CategoryTree
+import com.example.knowledgecards.domain.cardsInBrowseOrder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -43,6 +44,7 @@ internal data class WidgetState(
     val index: Int,
     val total: Int,
     val pathExpanded: Boolean,
+    val widgetFontSizeSp: Float = 18f,
     val accentColor: com.example.knowledgecards.domain.AccentColor =
         com.example.knowledgecards.domain.AccentColor.SYSTEM
 )
@@ -88,7 +90,7 @@ class CardWidget : GlanceAppWidget() {
             val container = (context.applicationContext as KnowledgeCardsApp).container
             return withContext(Dispatchers.IO) {
                 val settings = container.progressStore.current()
-                val cards = container.cardRepository.getCards(settings.sortMode)
+                val cards = container.cardRepository.cardsInBrowseOrder(settings.sortMode)
                 val currentIndex = cards.indexOfFirst { it.id == settings.lastCardId }
                     .let { if (it >= 0) it else 0 }
                 WidgetState(
@@ -96,6 +98,7 @@ class CardWidget : GlanceAppWidget() {
                     index = currentIndex,
                     total = cards.size,
                     pathExpanded = settings.widgetPathExpanded,
+                    widgetFontSizeSp = settings.widgetFontSizeSp,
                     accentColor = settings.accentColor
                 )
             }
@@ -225,7 +228,7 @@ private fun CardWidgetContent(state: WidgetState) {
             items(listOf(card.content)) { body ->
                 Text(
                     text = body,
-                    style = TextStyle(fontSize = 18.sp, color = colors.onSurface),
+                    style = TextStyle(fontSize = state.widgetFontSizeSp.sp, color = colors.onSurface),
                     modifier = GlanceModifier.clickable(
                         CardWidgetActions.openCardAction(context, card.id)
                     )
