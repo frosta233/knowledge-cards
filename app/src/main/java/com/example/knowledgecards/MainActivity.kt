@@ -285,12 +285,19 @@ class MainActivity : ComponentActivity() {
                     NavigationBarItem(
                         selected = selectedTab == tab,
                         onClick = { selectedTab = tab },
+                        // Icon-only when unselected; icon + label when selected
+                        // (label fades in/out, icon recenters — M3 pattern).
+                        alwaysShowLabel = false,
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = MaterialTheme.colorScheme.onPrimary,
-                            selectedTextColor = MaterialTheme.colorScheme.onPrimary,
+                            // The label sits on the nav-bar container (below the
+                            // indicator pill), so it uses the content text color
+                            // (onSurface) — not onPrimary, which is dark-on-dark
+                            // in dark mode and unreadable.
+                            selectedTextColor = MaterialTheme.colorScheme.onSurface,
                             indicatorColor = MaterialTheme.colorScheme.primary,
                             unselectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f),
-                            unselectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f)
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f)
                         ),
                         icon = {
                             Icon(
