@@ -64,10 +64,15 @@ docs/转写提示词.md           （教材原文 → 卡片格式 的 AI 转写
 环境要求：JDK 17+（本机用 21）、Android SDK（`local.properties` 已指向 `/home/aliya/Android/Sdk`）、网络可达 google/mavenCentral。
 
 ```bash
-./gradlew :app:assembleDebug            # 构建 debug APK
+./gradlew :app:assembleDebug            # 构建 debug APK（40MB：无 R8、DEX 不压缩）
 ./gradlew :app:testDebugUnitTest        # 单元测试（25+ 用例）
 ./gradlew :app:installDebug             # 安装到已连接设备
+./gradlew :app:assembleRelease          # 构建发布版 APK（R8 裁剪+资源收缩，约 5MB）
 ```
+
+- **发布版签名**：`keystore/` 目录（已 gitignore）存 `release.jks` + `keystore.properties`（storeFile/storePassword/keyAlias/keyPassword）。**该密钥是发布身份的凭证，务必备份 `keystore/` 整个目录**；丢失后无法向已安装用户推送更新。
+- **R8**：release 开启 `isMinifyEnabled` + `isShrinkResources`（40MB→5MB，DEX 36MB→4.2MB，未引用资源如图标母本自动剔除）。`proguard-rules.pro` 保留了 `androidx.glance.**`；Compose/Room/Glance 自带 consumer rules。
+- **debug 包为何大**：不跑 R8（全部依赖代码都在）、DEX 以 Stored 方式不压缩存储（AGP debug 默认，为加快安装）。
 
 依赖版本集中在 `gradle/libs.versions.toml`：
 AGP 8.13.2 · Kotlin 2.2.21 · KSP 2.2.21-2.0.5 · Room 2.8.4 · Compose BOM 2026.05.01 ·
@@ -103,4 +108,4 @@ Gradle wrapper 8.14.3，`gradle.properties` 里 `org.gradle.java.home=/usr/lib/j
 - 已在 Android 16 真机（OnePlus, 1264×2780）完成全流程验证：导入 235 张方剂卡、目录管理、微件翻卡/路径展开/滚动、进度联动。
 - 近期追加并验证：微件与 App 排序/进度双向同步（含热启动对齐）、设置变更即时推送微件、目录页检索、界面配色体系跟随主题色（含深色模式修复）。
 - 遗留可优化点：微件正文滚动依赖 Glance LazyColumn（已知在个别 launcher 上 a11y 报告高度 0，但渲染正常）；微件半透明面板透明度可调；`.rar` 未支持（专利格式）。
-- **应用图标**：已接入自适应图标——源图 `app/src/main/res/mipmap-nodpi/icon_1.png`（2048×2048，白底橙色图形）；背景层用纯白 `#FFFFFF`（`colors.xml` 的 `ic_launcher_background`），前景层 `app/src/main/res/drawable-nodpi/ic_launcher_foreground.png`（432×432，由源图抠出的橙色图形，按饱和度生成 alpha 保留抗锯齿与镂空，缩放进 66dp 安全区）；`mipmap-anydpi-v26/ic_launcher.xml` / `ic_launcher_round.xml` 的 monochrome 复用同一前景。换图标时重做前景 PNG 即可，XML 无需改动。
+- **应用图标**：已接入自适应图标——母本 `docs/icon_1.png`（2048×2048，白底橙色图形，放 docs 避免打包进 APK）；背景层用纯白 `#FFFFFF`（`colors.xml` 的 `ic_launcher_background`），前景层 `app/src/main/res/drawable-nodpi/ic_launcher_foreground.png`（432×432，由母本抠出的橙色图形，按饱和度生成 alpha 保留抗锯齿与镂空，缩放进 66dp 安全区）；`mipmap-anydpi-v26/ic_launcher.xml` / `ic_launcher_round.xml` 的 monochrome 复用同一前景。换图标时重做前景 PNG 即可，XML 无需改动。

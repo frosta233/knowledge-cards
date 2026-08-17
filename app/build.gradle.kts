@@ -5,6 +5,8 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+import java.util.Properties
+
 android {
     namespace = "com.example.knowledgecards"
     compileSdk = 36
@@ -18,9 +20,25 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            // Credentials live in keystore/keystore.properties (gitignored).
+            val props = Properties().apply {
+                val f = rootProject.file("keystore/keystore.properties")
+                if (f.exists()) f.inputStream().use { load(it) }
+            }
+            storeFile = rootProject.file(props.getProperty("storeFile", "keystore/release.jks"))
+            storePassword = props.getProperty("storePassword", "")
+            keyAlias = props.getProperty("keyAlias", "knowledgecards")
+            keyPassword = props.getProperty("keyPassword", "")
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
