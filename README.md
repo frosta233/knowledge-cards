@@ -103,4 +103,4 @@ Gradle wrapper 8.14.3，`gradle.properties` 里 `org.gradle.java.home=/usr/lib/j
 - 已在 Android 16 真机（OnePlus, 1264×2780）完成全流程验证：导入 235 张方剂卡、目录管理、微件翻卡/路径展开/滚动、进度联动。
 - 近期追加并验证：微件与 App 排序/进度双向同步（含热启动对齐）、设置变更即时推送微件、目录页检索、界面配色体系跟随主题色（含深色模式修复）。
 - 遗留可优化点：微件正文滚动依赖 Glance LazyColumn（已知在个别 launcher 上 a11y 报告高度 0，但渲染正常）；微件半透明面板透明度可调；`.rar` 未支持（专利格式）。
-- **应用图标**：最终版图标源图已放在 `app/src/main/res/mipmap-nodpi/icon_1.png`（2048×2048 全幅 PNG，暂未接入）。接入时建议：以 432×432 安全区裁出前景（居中约 66% 内容）生成自适应图标前景，或按密度生成 mipmap-{m,h,xh,xxh,xxxh}dpi/ic_launcher.png 后替换 manifest 引用；当前 manifest 仍指向 `@mipmap/ic_launcher`（自适应图标 + 向量前景）。
+- **应用图标**：已接入自适应图标——源图 `app/src/main/res/mipmap-nodpi/icon_1.png`（2048×2048，白底橙色图形）；背景层用纯白 `#FFFFFF`（`colors.xml` 的 `ic_launcher_background`），前景层 `app/src/main/res/drawable-nodpi/ic_launcher_foreground.png`（432×432，由源图抠出的橙色图形，按饱和度生成 alpha 保留抗锯齿与镂空，缩放进 66dp 安全区）；`mipmap-anydpi-v26/ic_launcher.xml` / `ic_launcher_round.xml` 的 monochrome 复用同一前景。换图标时重做前景 PNG 即可，XML 无需改动。
