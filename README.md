@@ -8,6 +8,11 @@
 - 🚫 无广告 · 无网络权限 · 纯本地离线
 - 📱 中文界面，适配深色模式与多色主题
 
+## 下载
+
+最新版安装包（APK）见 [Releases](https://github.com/frosta233/knowledge-cards/releases)。
+要求 **Android 16（API 36）及以上**；安装包使用正式签名，可覆盖升级。
+
 ## 截图
 
 | 闪卡浏览 | 目录管理 |
