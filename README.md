@@ -10,9 +10,11 @@
 
 ## 截图
 
-| 闪卡浏览 | 目录管理 | 设置 |
-|---|---|---|
-| ![闪卡](docs/screenshots/browse.png) | ![目录](docs/screenshots/directory.png) | ![设置](docs/screenshots/settings.png) |
+| 闪卡浏览 | 目录管理 |
+|---|---|
+| ![闪卡](docs/screenshots/browse.png) | ![目录](docs/screenshots/directory.png) |
+| **设置** | **桌面微件** |
+| ![设置](docs/screenshots/settings.png) | ![微件](docs/screenshots/widget.png) |
 
 ## 功能
 
