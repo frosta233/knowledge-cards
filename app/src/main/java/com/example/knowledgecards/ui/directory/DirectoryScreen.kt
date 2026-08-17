@@ -1,5 +1,13 @@
 package com.example.knowledgecards.ui.directory
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -12,7 +20,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
@@ -36,12 +43,51 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.knowledgecards.domain.CategoryNode
 import com.example.knowledgecards.ui.theme.appTopAppBarColors
+import kotlinx.coroutines.delay
+
+/**
+ * M3 list reorder animation for rows inserted/removed on expand/collapse.
+ * Note: must be called as `Modifier.animateItem(...)` directly inside
+ * `item { }` — LazyItemScope is a @DslMarker scope, so a helper extension
+ * declared outside the scope cannot resolve its implicit receiver.
+ * Specs (M3 standard easing): fade in ~220ms, reflow via non-bouncy spring,
+ * fade out ~120ms on collapse.
+ */
+private const val ExpandMs = 220
+private const val CollapseFadeMs = 120
+private val EnterSlide = 10.dp
+
+/**
+ * Entrance animation for rows that appear when a node expands (M3 list
+ * expansion): the row slides down from its parent row while fading in.
+ * Removal on collapse is handled by [Modifier.animateItem] on the same
+ * container, which fades the row out and glides siblings into place.
+ */
+@Composable
+private fun EnterAnimatingContent(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    val state = remember { MutableTransitionState(false) }
+    state.targetState = true
+    val slidePx = with(LocalDensity.current) { EnterSlide.roundToPx() }
+    AnimatedVisibility(
+        visibleState = state,
+        modifier = modifier,
+        enter = slideInVertically(
+            animationSpec = tween(ExpandMs, easing = FastOutSlowInEasing),
+            initialOffsetY = { -slidePx }
+        )
+    ) { content() }
+}
 
 /**
  * Multi-level category tree with card-set management:
@@ -69,11 +115,14 @@ fun DirectoryScreen(
     }
 
     // Scroll a search-revealed target into view so it is visible in the tree.
-    // Scroll to a card revealed by search.
+    // Scroll to a card revealed by search (after the expansion animation).
     LaunchedEffect(highlightCardId) {
         if (highlightCardId > 0L) {
             val index = computeCardIndex(tree, expanded, highlightCardId)
-            if (index > 0) listState.animateScrollToItem(index)
+            if (index > 0) {
+                delay((ExpandMs + 40).toLong())
+                listState.animateScrollToItem(index)
+            }
         }
     }
 
@@ -81,7 +130,10 @@ fun DirectoryScreen(
     LaunchedEffect(revealCategoryPath) {
         if (revealCategoryPath.isNotEmpty()) {
             val index = computeCategoryIndex(tree, expanded, revealCategoryPath)
-            if (index > 0) listState.animateScrollToItem(index)
+            if (index > 0) {
+                delay((ExpandMs + 40).toLong())
+                listState.animateScrollToItem(index)
+            }
             viewModel.consumeRevealCategory()
         }
     }
@@ -183,7 +235,23 @@ private fun androidx.compose.foundation.lazy.LazyListScope.renderNode(
 ) {
     val isExpanded = node.fullPath in expanded
     item(key = node.fullPath) {
-        NodeRow(node, depth, isExpanded, highlightCategoryPath, viewModel, onOpenCategory)
+        val row: @Composable () -> Unit = {
+            NodeRow(node, depth, isExpanded, highlightCategoryPath, viewModel, onOpenCategory)
+        }
+        // Only rows inserted by an expansion animate in; the top-level rows
+        // are always present and must not replay their entrance on tab switches.
+        if (depth > 0) {
+            EnterAnimatingContent(modifier = Modifier.animateItem(
+                fadeInSpec = tween(ExpandMs, easing = FastOutSlowInEasing),
+                placementSpec = spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessMedium
+                ),
+                fadeOutSpec = tween(CollapseFadeMs, easing = FastOutSlowInEasing)
+            )) { row() }
+        } else {
+            row()
+        }
     }
     if (isExpanded) {
         node.children.forEach { child ->
@@ -192,32 +260,41 @@ private fun androidx.compose.foundation.lazy.LazyListScope.renderNode(
         node.cards.forEach { card ->
             item(key = "card-${card.id}") {
                 val highlighted = card.id == highlightCardId
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .then(
-                            if (highlighted) {
-                                Modifier.background(MaterialTheme.colorScheme.primaryContainer)
-                            } else {
-                                Modifier
+                EnterAnimatingContent(modifier = Modifier.animateItem(
+                    fadeInSpec = tween(ExpandMs, easing = FastOutSlowInEasing),
+                    placementSpec = spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessMedium
+                    ),
+                    fadeOutSpec = tween(CollapseFadeMs, easing = FastOutSlowInEasing)
+                )) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(
+                                if (highlighted) {
+                                    Modifier.background(MaterialTheme.colorScheme.primaryContainer)
+                                } else {
+                                    Modifier
+                                }
+                            )
+                            .clickable {
+                                viewModel.clearHighlight()
+                                onOpenCard(card.path, card.id)
                             }
+                            .padding(start = 36.dp + (depth * 20).dp, end = 16.dp, top = 10.dp, bottom = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = card.title,
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = if (highlighted) FontWeight.SemiBold else FontWeight.Normal,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
                         )
-                        .clickable {
-                            viewModel.clearHighlight()
-                            onOpenCard(card.path, card.id)
-                        }
-                        .padding(start = 36.dp + (depth * 20).dp, end = 16.dp, top = 10.dp, bottom = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = card.title,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = if (highlighted) FontWeight.SemiBold else FontWeight.Normal,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
-                    )
+                    }
                 }
             }
         }
@@ -458,15 +535,22 @@ private fun NodeRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (node.children.isNotEmpty() || node.cards.isNotEmpty()) {
+            // Chevron rotates 90° (right → down) with M3 standard easing.
+            val chevronRotation by animateFloatAsState(
+                targetValue = if (isExpanded) 90f else 0f,
+                animationSpec = tween(ExpandMs, easing = FastOutSlowInEasing),
+                label = "chevronRotation"
+            )
             Icon(
-                imageVector = if (isExpanded) Icons.Filled.KeyboardArrowDown
-                else Icons.Filled.KeyboardArrowRight,
+                imageVector = Icons.Filled.KeyboardArrowRight,
                 contentDescription = if (isExpanded) "收起" else "展开",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.clickable {
-                    viewModel.clearHighlight()
-                    viewModel.toggle(node.fullPath)
-                }
+                modifier = Modifier
+                    .graphicsLayer { rotationZ = chevronRotation }
+                    .clickable {
+                        viewModel.clearHighlight()
+                        viewModel.toggle(node.fullPath)
+                    }
             )
         } else {
             Icon(
