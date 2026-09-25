@@ -52,27 +52,35 @@ import com.example.knowledgecards.ui.theme.appTopAppBarColors
 fun BrowseScreen(
     viewModel: BrowseViewModel,
     onOpenEditor: (Long) -> Unit,
-    onImport: () -> Unit
+    onOpenBookshelf: () -> Unit
 ) {
     val ui by viewModel.uiState.collectAsStateWithLifecycle()
     val cards = ui.cards
     val pagerState = rememberPagerState(pageCount = { cards.size })
 
+    // Cards of the book whose position the pager currently shows. The initial
+    // value is set from the first non-empty list, so switching books is what
+    // resets the pager — not the first load.
+    var activeBookId by rememberSaveable { mutableStateOf(-1L) }
+    var initialized by rememberSaveable { mutableStateOf(false) }
+
     // Initial position: start card or last restored progress. When the screen
     // is recomposed with state already restored (tab switch), still realign
     // with the shared progress — the widget may have flipped cards meanwhile.
-    var initialized by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(cards) {
-        if (cards.isNotEmpty()) {
-            if (!initialized) {
-                val index = viewModel.initialIndex(cards)
-                if (index != pagerState.currentPage) pagerState.scrollToPage(index)
-                initialized = true
-            }
-            viewModel.resumeToSharedProgress(
-                cards.getOrNull(pagerState.currentPage)?.id ?: 0L
-            )
+    // A book switch instead lands on that book's first card, otherwise the
+    // pager would keep an index that means something else in the new book.
+    LaunchedEffect(cards, ui.bookId) {
+        if (cards.isEmpty()) return@LaunchedEffect
+        if (!initialized || ui.bookId != activeBookId) {
+            val switchingBook = initialized && ui.bookId != activeBookId
+            activeBookId = ui.bookId
+            val index = if (switchingBook) 0 else viewModel.initialIndex(cards)
+            if (index != pagerState.currentPage) pagerState.scrollToPage(index)
+            initialized = true
         }
+        viewModel.resumeToSharedProgress(
+            cards.getOrNull(pagerState.currentPage)?.id ?: 0L
+        )
     }
 
     // When the sort mode changes, follow the last browsed card to its new
@@ -129,18 +137,23 @@ fun BrowseScreen(
             colors = appTopAppBarColors(),
             title = {
                 val current = cards.getOrNull(pagerState.currentPage)
-                // Full path when it fits; ellipsis only if it would
-                // overflow the line (the row is free of other widgets now).
+                // "书名 · 分类" — the same header as the widget, so the book you
+                // are studying is always visible. Ellipsis only if it overflows.
+                val path = current?.path?.ifBlank { "未分类" }
+                val title = when {
+                    current == null -> ui.bookName.ifEmpty { "闪卡" }
+                    ui.bookName.isEmpty() -> path.orEmpty()
+                    else -> "${ui.bookName} · $path"
+                }
                 Text(
-                    text = current?.path?.ifBlank { "未分类" } ?: "闪卡",
+                    text = title,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.titleMedium
                 )
             },
             actions = {
-                val scoped = viewModel.scopePath.collectAsStateWithLifecycle().value
-                if (scoped.isNotEmpty()) {
+                if (ui.scopePath.isNotEmpty()) {
                     TextButton(onClick = viewModel::clearScope) {
                         Text("全部")
                     }
@@ -149,7 +162,7 @@ fun BrowseScreen(
         )
         Box(modifier = Modifier.fillMaxSize()) {
             if (cards.isEmpty()) {
-                EmptyLibrary(onImport)
+                EmptyLibrary(bookName = ui.bookName, onOpenBookshelf = onOpenBookshelf)
             } else {
                 Column(modifier = Modifier.fillMaxSize()) {
                     HorizontalPager(
@@ -242,7 +255,7 @@ private fun CardPage(
 }
 
 @Composable
-private fun EmptyLibrary(onImport: () -> Unit) {
+private fun EmptyLibrary(bookName: String, onOpenBookshelf: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -251,22 +264,23 @@ private fun EmptyLibrary(onImport: () -> Unit) {
         verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center
     ) {
         Text(
-            text = "还没有卡片",
+            text = if (bookName.isEmpty()) "书架还是空的" else "《$bookName》里还没有卡片",
             style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onSurface
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center
         )
         Text(
-            text = "在「设置」页或点击下方按钮导入\n选择包含 .md 文件的文件夹，每个文件是一张卡片",
+            text = "在「书架」页导入 .zip / .tar 压缩包或 Markdown 文件夹，\n每个压缩包就是一本独立的书。",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 8.dp),
             textAlign = TextAlign.Center
         )
         Button(
-            onClick = onImport,
+            onClick = onOpenBookshelf,
             modifier = Modifier.padding(top = 24.dp)
         ) {
-            Text("导入 Markdown 文件夹")
+            Text("去书架导入")
         }
     }
 }

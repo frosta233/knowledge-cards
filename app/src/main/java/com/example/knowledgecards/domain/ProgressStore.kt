@@ -29,6 +29,8 @@ enum class AccentColor {
 /** Immutable snapshot of all user settings and the browse progress. */
 data class AppSettings(
     val lastCardId: Long = 0L,
+    /** Selected book on the shelf; 0 = no book selected (empty shelf). */
+    val currentBookId: Long = 0L,
     val sortMode: SortMode = SortMode.DIRECTORY,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val accentColor: AccentColor = AccentColor.SYSTEM,
@@ -45,6 +47,7 @@ class ProgressStore(private val context: Context) {
 
     private object Keys {
         val LAST_CARD_ID = longPreferencesKey("last_card_id")
+        val CURRENT_BOOK_ID = longPreferencesKey("current_book_id")
         val SORT_MODE = intPreferencesKey("sort_mode")
         val THEME_MODE = intPreferencesKey("theme_mode")
         val ACCENT_COLOR = intPreferencesKey("accent_color")
@@ -56,6 +59,7 @@ class ProgressStore(private val context: Context) {
     val settings: Flow<AppSettings> = context.dataStore.data.map { prefs ->
         AppSettings(
             lastCardId = prefs[Keys.LAST_CARD_ID] ?: 0L,
+            currentBookId = prefs[Keys.CURRENT_BOOK_ID] ?: 0L,
             // 浏览顺序切换已从设置页移除，当前固定为目录顺序（与目录页一致）。
             // 排序后端（SortMode / setSortMode / cardsInBrowseOrder）保留，
             // 未来恢复多排序方式时改回 prefs[Keys.SORT_MODE] 读取即可。
@@ -72,6 +76,11 @@ class ProgressStore(private val context: Context) {
 
     suspend fun setLastCardId(cardId: Long) {
         context.dataStore.edit { it[Keys.LAST_CARD_ID] = cardId }
+    }
+
+    /** Selects the book shown by the directory, the flashcards and the widget. */
+    suspend fun setCurrentBookId(bookId: Long) {
+        context.dataStore.edit { it[Keys.CURRENT_BOOK_ID] = bookId }
     }
 
     suspend fun setSortMode(mode: SortMode) {

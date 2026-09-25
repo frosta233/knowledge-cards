@@ -38,16 +38,21 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
-import com.example.knowledgecards.data.import.CardImporter
+import com.example.knowledgecards.data.CardRepository
+import com.example.knowledgecards.data.import.ArchiveImporter
+import com.example.knowledgecards.data.import.BookImporter
+import com.example.knowledgecards.data.import.BookImportResult
 import com.example.knowledgecards.data.import.ImportResult
-import com.example.knowledgecards.data.import.SafTreeScanner
 import com.example.knowledgecards.domain.AppSettings
 import com.example.knowledgecards.domain.ThemeMode
+import com.example.knowledgecards.ui.bookshelf.BookshelfScreen
+import com.example.knowledgecards.ui.bookshelf.BookshelfViewModel
 import com.example.knowledgecards.ui.browse.BrowseScreen
 import com.example.knowledgecards.ui.browse.BrowseViewModel
 import com.example.knowledgecards.ui.directory.DirectoryScreen
@@ -66,6 +71,7 @@ import kotlinx.coroutines.withContext
 private enum class MainTab(val label: String) {
     FLASHCARDS("闪卡"),
     DIRECTORY("目录"),
+    BOOKSHELF("书架"),
     SETTINGS("设置")
 }
 
@@ -73,6 +79,7 @@ class MainActivity : ComponentActivity() {
 
     private val browseViewModel: BrowseViewModel by viewModels()
     private val directoryViewModel: DirectoryViewModel by viewModels()
+    private val bookshelfViewModel: BookshelfViewModel by viewModels()
     private val settingsViewModel: SettingsViewModel by viewModels()
 
     private var importingState by mutableStateOf<ImportingState?>(null)
@@ -153,38 +160,17 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun importArchive(uri: Uri) {
-        if (!com.example.knowledgecards.data.import.ArchiveImporter.supports(uri)) {
+        if (!ArchiveImporter.supports(uri)) {
             importingState = ImportingState.DONE(
                 ImportResult(
                     failed = listOf(
-                        uri.lastPathSegment.orEmpty() to
-                            com.example.knowledgecards.data.import.ArchiveImporter.unsupportedReason(uri)
+                        uri.lastPathSegment.orEmpty() to ArchiveImporter.unsupportedReason(uri)
                     )
                 )
             )
             return
         }
-        lifecycleScope.launch {
-            importingState = ImportingState.RUNNING
-            val result = withContext(Dispatchers.IO) {
-                runCatching {
-                    val container = (application as KnowledgeCardsApp).container
-                    val files = com.example.knowledgecards.data.import.ArchiveImporter.extract(
-                        this@MainActivity, uri
-                    )
-                    CardImporter(container.cardRepository).import(files)
-                }
-            }
-            importingState = result.fold(
-                onSuccess = { ImportingState.DONE(it) },
-                onFailure = {
-                    ImportingState.DONE(
-                        ImportResult(failed = listOf("导入失败" to (it.message ?: "未知错误")))
-                    )
-                }
-            )
-            WidgetUpdater.update(this@MainActivity)
-        }
+        runImport { BookImporter(it).importArchive(this@MainActivity, uri) }
     }
 
     private fun importFromTree(uri: Uri) {
@@ -193,20 +179,43 @@ class MainActivity : ComponentActivity() {
                 uri, Intent.FLAG_GRANT_READ_URI_PERMISSION
             )
         }
+        runImport { BookImporter(it).importTree(this@MainActivity, uri) }
+    }
+
+    /**
+     * Runs one import (archive or folder) into a book, then makes that book the
+     * selected one so 目录 / 闪卡 immediately show what was just imported.
+     */
+    private fun runImport(block: suspend (CardRepository) -> BookImportResult) {
         lifecycleScope.launch {
             importingState = ImportingState.RUNNING
-            val result = withContext(Dispatchers.IO) {
+            val outcome = withContext(Dispatchers.IO) {
                 runCatching {
                     val container = (application as KnowledgeCardsApp).container
-                    val files = SafTreeScanner.scan(this@MainActivity, uri)
-                    CardImporter(container.cardRepository).import(files)
+                    block(container.cardRepository)
                 }
             }
-            importingState = result.fold(
-                onSuccess = { ImportingState.DONE(it) },
+            outcome.fold(
+                onSuccess = { imported ->
+                    if (imported.imported > 0) {
+                        withContext(Dispatchers.IO) {
+                            (application as KnowledgeCardsApp).container.progressStore
+                                .setCurrentBookId(imported.bookId)
+                        }
+                        browseViewModel.clearScope()
+                        directoryViewModel.resetExpansion()
+                    }
+                    importingState = ImportingState.DONE(
+                        result = imported.result,
+                        bookName = imported.bookName,
+                        createdBook = imported.createdBook
+                    )
+                },
                 onFailure = {
-                    ImportingState.DONE(
-                        ImportResult(failed = listOf("导入失败" to (it.message ?: "未知错误")))
+                    importingState = ImportingState.DONE(
+                        result = ImportResult(
+                            failed = listOf("导入失败" to (it.message ?: "未知错误"))
+                        )
                     )
                 }
             )
@@ -246,7 +255,7 @@ class MainActivity : ComponentActivity() {
                 MainTab.FLASHCARDS -> BrowseScreen(
                     viewModel = browseViewModel,
                     onOpenEditor = { editingCardId = it },
-                    onImport = { importTreeLauncher.launch(null) }
+                    onOpenBookshelf = { selectedTab = MainTab.BOOKSHELF }
                 )
 
                 MainTab.DIRECTORY -> DirectoryScreen(
@@ -262,6 +271,21 @@ class MainActivity : ComponentActivity() {
                     onOpenCard = { scope, cardId ->
                         browseViewModel.setScope(scope, cardId)
                         selectedTab = MainTab.FLASHCARDS
+                    }
+                )
+
+                MainTab.BOOKSHELF -> BookshelfScreen(
+                    viewModel = bookshelfViewModel,
+                    onOpenBook = { bookId ->
+                        bookshelfViewModel.selectBook(bookId)
+                        browseViewModel.clearScope()
+                        directoryViewModel.resetExpansion()
+                        selectedTab = MainTab.DIRECTORY
+                    },
+                    onImportArchive = {
+                        archiveLauncher.launch(
+                            arrayOf("application/zip", "application/x-tar")
+                        )
                     }
                 )
 
@@ -300,14 +324,24 @@ class MainActivity : ComponentActivity() {
                             unselectedTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f)
                         ),
                         icon = {
-                            Icon(
-                                imageVector = when (tab) {
-                                    MainTab.FLASHCARDS -> Icons.Filled.Home
-                                    MainTab.DIRECTORY -> Icons.AutoMirrored.Filled.List
-                                    MainTab.SETTINGS -> Icons.Filled.Settings
-                                },
-                                contentDescription = tab.label
-                            )
+                            when (tab) {
+                                MainTab.FLASHCARDS -> Icon(
+                                    imageVector = Icons.Filled.Home,
+                                    contentDescription = tab.label
+                                )
+                                MainTab.DIRECTORY -> Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.List,
+                                    contentDescription = tab.label
+                                )
+                                MainTab.BOOKSHELF -> Icon(
+                                    painter = painterResource(R.drawable.ic_bookshelf),
+                                    contentDescription = tab.label
+                                )
+                                MainTab.SETTINGS -> Icon(
+                                    imageVector = Icons.Filled.Settings,
+                                    contentDescription = tab.label
+                                )
+                            }
                         },
                         label = { Text(tab.label) }
                     )
@@ -332,6 +366,8 @@ class MainActivity : ComponentActivity() {
 
             is ImportingState.DONE -> ImportResultDialog(
                 result = state.result,
+                bookName = state.bookName,
+                createdBook = state.createdBook,
                 onDismiss = { importingState = null }
             )
 
@@ -342,16 +378,32 @@ class MainActivity : ComponentActivity() {
 
 private sealed interface ImportingState {
     data object RUNNING : ImportingState
-    data class DONE(val result: ImportResult) : ImportingState
+    data class DONE(
+        val result: ImportResult,
+        /** Book the import went into; null when the import failed outright. */
+        val bookName: String? = null,
+        val createdBook: Boolean = false
+    ) : ImportingState
 }
 
 @Composable
-private fun ImportResultDialog(result: ImportResult, onDismiss: () -> Unit) {
+private fun ImportResultDialog(
+    result: ImportResult,
+    bookName: String?,
+    createdBook: Boolean,
+    onDismiss: () -> Unit
+) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("导入完成") },
         text = {
             Column {
+                if (bookName != null) {
+                    Text(
+                        text = if (createdBook) "已放入新书架《$bookName》" else "已更新书架《$bookName》",
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
                 Text("新增：${result.newCount} 张")
                 Text("更新：${result.updatedCount} 张")
                 if (result.failed.isNotEmpty()) {

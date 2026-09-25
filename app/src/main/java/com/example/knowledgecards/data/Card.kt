@@ -8,15 +8,19 @@ import androidx.room.PrimaryKey
  * A single knowledge card. The [path] is the slash-separated category path,
  * e.g. "方剂学/解表剂/辛温解表". An empty path means "未分类".
  *
+ * [bookId] points at the [Book] the card was imported into; the same title may
+ * exist in several books, which is why the uniqueness index is scoped to it.
+ *
  * [sortOrder] keeps the import (insertion) order so the user can choose
  * between "title order" and "import order" browsing.
  */
 @Entity(
     tableName = "cards",
-    indices = [Index(value = ["path", "title"], unique = true)]
+    indices = [Index(value = ["bookId", "path", "title"], unique = true)]
 )
 data class Card(
     @PrimaryKey(autoGenerate = true) val id: Long = 0L,
+    val bookId: Long = 0L,
     val title: String,
     val content: String,
     val path: String,

@@ -71,8 +71,15 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             _exporting.value = true
             try {
-                val cards = app.container.cardRepository.getCards(SortMode.TITLE)
-                val result = CardExporter.export(getApplication(), treeUri, cards)
+                val repository = app.container.cardRepository
+                // One sub-folder per book, so the backup mirrors the shelf.
+                val payload = repository.getBooks().map { book ->
+                    CardExporter.BookExport(
+                        bookName = book.name,
+                        cards = repository.getCards(book.id, SortMode.TITLE)
+                    )
+                }
+                val result = CardExporter.export(getApplication(), treeUri, payload)
                 _exportResult.value = result.exported to result.failed
             } finally {
                 _exporting.value = false

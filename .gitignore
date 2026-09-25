@@ -10,4 +10,5 @@
 app/build/
 /keystore/
 /docs/转写提示词.md
+/docs/*转写提示词*
 /release/

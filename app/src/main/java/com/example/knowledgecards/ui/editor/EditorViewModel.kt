@@ -15,6 +15,7 @@ import com.example.knowledgecards.domain.CategoryTree
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -37,9 +38,14 @@ class EditorViewModel(
     private val _deleted = MutableStateFlow(false)
     val deleted: StateFlow<Boolean> = _deleted
 
+    /** Book of the card being edited; its categories feed the path picker. */
+    private val bookId = MutableStateFlow(0L)
+
     /** Existing categories for the path picker (path must be picked, not typed). */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val categories: StateFlow<List<String>> =
-        repository.observeCards(SortMode.TITLE)
+        bookId
+            .flatMapLatest { repository.observeCards(it, SortMode.TITLE) }
             .map { cards -> cards.map { it.path }.filter { it.isNotEmpty() }.distinct().sorted() }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
@@ -50,6 +56,7 @@ class EditorViewModel(
                 title.value = card.title
                 content.value = card.content
                 path.value = card.path
+                bookId.value = card.bookId
             } else {
                 _saved.value = true // nothing to edit
             }

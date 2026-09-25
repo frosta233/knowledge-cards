@@ -59,7 +59,13 @@ class CardWidgetReceiver : GlanceAppWidgetReceiver() {
                 val container = (context.applicationContext as KnowledgeCardsApp).container
                 val store = container.progressStore
                 val settings = store.current()
-                val cards = container.cardRepository.cardsInBrowseOrder(settings.sortMode)
+                val books = container.cardRepository.getBooks()
+                val bookId = com.example.knowledgecards.data.effectiveBookId(
+                    settings.currentBookId, books
+                )
+                val cards = container.cardRepository.cardsInBrowseOrder(
+                    bookId, settings.sortMode
+                )
                 if (cards.isEmpty()) return@launch
                 val currentIndex =
                     cards.indexOfFirst { it.id == settings.lastCardId }.let { if (it >= 0) it else 0 }

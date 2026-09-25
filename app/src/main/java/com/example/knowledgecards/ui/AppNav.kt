@@ -4,6 +4,7 @@ package com.example.knowledgecards.ui
 sealed interface Screen {
     data object Browse : Screen
     data object Directory : Screen
+    data object Bookshelf : Screen
     data class Editor(val cardId: Long) : Screen
     data object Settings : Screen
 }

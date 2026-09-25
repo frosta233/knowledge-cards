@@ -9,7 +9,7 @@ import com.example.knowledgecards.domain.ProgressStore
 /** Manual DI container: keeps singletons for the whole process. */
 class AppContainer(context: Application) {
     private val database = AppDatabase.getInstance(context)
-    val cardRepository: CardRepository = RoomCardRepository(database.cardDao())
+    val cardRepository: CardRepository = RoomCardRepository(database.cardDao(), database.bookDao())
     val progressStore = ProgressStore(context)
 }
 

@@ -44,6 +44,8 @@ internal data class WidgetState(
     val index: Int,
     val total: Int,
     val pathExpanded: Boolean,
+    /** Name of the selected book, shown as a prefix in the path bar. */
+    val bookName: String = "",
     val widgetFontSizeSp: Float = 18f,
     val accentColor: com.example.knowledgecards.domain.AccentColor =
         com.example.knowledgecards.domain.AccentColor.SYSTEM
@@ -90,7 +92,14 @@ class CardWidget : GlanceAppWidget() {
             val container = (context.applicationContext as KnowledgeCardsApp).container
             return withContext(Dispatchers.IO) {
                 val settings = container.progressStore.current()
-                val cards = container.cardRepository.cardsInBrowseOrder(settings.sortMode)
+                // The widget follows the selected book, exactly like the app.
+                val books = container.cardRepository.getBooks()
+                val bookId = com.example.knowledgecards.data.effectiveBookId(
+                    settings.currentBookId, books
+                )
+                val cards = container.cardRepository.cardsInBrowseOrder(
+                    bookId, settings.sortMode
+                )
                 val currentIndex = cards.indexOfFirst { it.id == settings.lastCardId }
                     .let { if (it >= 0) it else 0 }
                 WidgetState(
@@ -98,6 +107,7 @@ class CardWidget : GlanceAppWidget() {
                     index = currentIndex,
                     total = cards.size,
                     pathExpanded = settings.widgetPathExpanded,
+                    bookName = books.firstOrNull { it.id == bookId }?.name.orEmpty(),
                     widgetFontSizeSp = settings.widgetFontSizeSp,
                     accentColor = settings.accentColor
                 )
@@ -179,14 +189,19 @@ private fun CardWidgetContent(state: WidgetState) {
             return@Column
         }
 
-        // 1) Path bar — last segment, tap toggles the full path.
+        // 1) Path bar — "书名 · 分类", tap toggles the full path.
         val pathText = if (state.pathExpanded) {
             card.path.ifEmpty { "未分类" }
         } else {
             CategoryTree.lastSegment(card.path)
         }
+        val headerText = if (state.bookName.isEmpty()) {
+            pathText
+        } else {
+            "${state.bookName} · $pathText"
+        }
         Text(
-            text = pathText,
+            text = headerText,
             maxLines = if (state.pathExpanded) 2 else 1,
             style = TextStyle(
                 fontSize = 15.sp,

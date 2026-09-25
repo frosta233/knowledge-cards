@@ -5,14 +5,16 @@ import com.example.knowledgecards.data.CardRepository
 import com.example.knowledgecards.data.UNCATEGORIZED
 
 /**
- * Imports parsed Markdown files into the repository.
+ * Imports parsed Markdown files into one book of the repository.
  *
- * Dedup rule: a card is identified by (path + title). If it already exists the
- * content is updated (no duplicate rows are ever created). New cards receive a
- * monotonically increasing [Card.sortOrder] so "import order" stays stable.
+ * Dedup rule: inside a book a card is identified by (path + title). If it
+ * already exists the content is updated (no duplicate rows are ever created).
+ * New cards receive a monotonically increasing [Card.sortOrder] so "import
+ * order" stays stable.
  */
 class CardImporter(
     private val repository: CardRepository,
+    private val bookId: Long,
     private val parser: MarkdownParser = MarkdownParser
 ) {
 
@@ -20,12 +22,12 @@ class CardImporter(
         var newCount = 0
         var updatedCount = 0
         val failed = mutableListOf<Pair<String, String>>()
-        var nextSortOrder = repository.maxSortOrder() + 1
+        var nextSortOrder = repository.maxSortOrder(bookId) + 1
 
         for (file in files) {
             try {
                 val parsed = parser.parse(file)
-                val existing = repository.findByPathAndTitle(parsed.path, parsed.title)
+                val existing = repository.findByPathAndTitle(bookId, parsed.path, parsed.title)
                 val now = System.currentTimeMillis()
                 if (existing != null) {
                     repository.update(
@@ -38,6 +40,7 @@ class CardImporter(
                 } else {
                     repository.insert(
                         Card(
+                            bookId = bookId,
                             title = parsed.title,
                             content = parsed.content,
                             path = parsed.path,

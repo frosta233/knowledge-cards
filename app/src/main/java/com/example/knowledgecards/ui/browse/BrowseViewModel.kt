@@ -6,8 +6,10 @@ import androidx.lifecycle.viewModelScope
 import com.example.knowledgecards.KnowledgeCardsApp
 import com.example.knowledgecards.data.Card
 import com.example.knowledgecards.data.CardRepository
+import com.example.knowledgecards.data.CategoryOrder
 import com.example.knowledgecards.data.SortMode
 import com.example.knowledgecards.data.UNCATEGORIZED
+import com.example.knowledgecards.data.effectiveBookId
 import com.example.knowledgecards.data.isPathWithin
 import com.example.knowledgecards.domain.CategoryTree
 import com.example.knowledgecards.domain.ProgressStore
@@ -18,14 +20,18 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 data class BrowseUiState(
     val cards: List<Card> = emptyList(),
     val fontSizeSp: Float = 18f,
-    val sortMode: SortMode = SortMode.TITLE
+    val sortMode: SortMode = SortMode.TITLE,
+    /** Selected book (0 = empty shelf); the browse list never crosses books. */
+    val bookId: Long = 0L,
+    val bookName: String = "",
+    /** Active category scope inside the book; empty = the whole book. */
+    val scopePath: String = ""
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -46,40 +52,61 @@ class BrowseViewModel(application: Application) : AndroidViewModel(application) 
     /** The card id to land on at startup (widget deep link); 0 = restore. */
     private val startCardId = MutableStateFlow(0L)
 
-    /** Browse scope: empty = all cards, otherwise only cards under this path. */
+    /** Browse scope inside the selected book: empty = all of its cards. */
     private val _scopePath = MutableStateFlow("")
-    val scopePath: StateFlow<String> = _scopePath
 
     private var lastSavedCardId = 0L
 
     val uiState: StateFlow<BrowseUiState> =
-        combine(store.settings, _scopePath, repository.observeCategoryOrders()) { s, scope, orders ->
-            Triple(s, scope, orders)
+        combine(
+            store.settings,
+            repository.observeBooks(),
+            _scopePath
+        ) { settings, books, scope ->
+            Triple(settings, books, scope)
         }
-        .flatMapLatest { (settings, scope, orders) ->
-            repository.observeCards(settings.sortMode)
-                .map { all ->
-                    val scoped = when {
-                        scope.isEmpty() -> all
-                        // The 未分类 root node is a display name; its cards
-                        // have an empty path.
-                        scope == UNCATEGORIZED -> all.filter { it.path.isEmpty() }
-                        else -> all.filter { isPathWithin(scope, it.path) }
+            .flatMapLatest { (settings, books, requestedScope) ->
+                val bookId = effectiveBookId(settings.currentBookId, books)
+                combine(
+                    repository.observeCards(bookId, settings.sortMode),
+                    repository.observeCategoryOrders(bookId)
+                ) { all, orders ->
+                    // A scope inherited from another book simply does not match
+                    // anything here; fall back to the whole book in that case.
+                    var scoped = filterByScope(all, requestedScope)
+                    var scope = requestedScope
+                    if (scope.isNotEmpty() && scoped.isEmpty()) {
+                        scoped = all
+                        scope = ""
                     }
                     val cards = if (settings.sortMode == SortMode.DIRECTORY) {
                         orderByTree(scoped, orders)
                     } else {
                         scoped
                     }
-                    BrowseUiState(cards, settings.fontSizeSp, settings.sortMode)
+                    BrowseUiState(
+                        cards = cards,
+                        fontSizeSp = settings.fontSizeSp,
+                        sortMode = settings.sortMode,
+                        bookId = bookId,
+                        bookName = books.firstOrNull { it.id == bookId }?.name.orEmpty(),
+                        scopePath = scope
+                    )
                 }
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BrowseUiState())
+            }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BrowseUiState())
+
+    private fun filterByScope(all: List<Card>, scope: String): List<Card> = when {
+        scope.isEmpty() -> all
+        // The 未分类 root node is a display name; its cards have an empty path.
+        scope == UNCATEGORIZED -> all.filter { it.path.isEmpty() }
+        else -> all.filter { isPathWithin(scope, it.path) }
+    }
 
     /** Orders cards by the category tree (manual order, then name), depth-first. */
     private fun orderByTree(
         cards: List<Card>,
-        orders: List<com.example.knowledgecards.data.CategoryOrder>
+        orders: List<CategoryOrder>
     ): List<Card> =
         CategoryTree.orderCardsByTree(
             cards,

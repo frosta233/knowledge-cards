@@ -125,7 +125,8 @@ fun SettingsScreen(
 
             SettingSectionTitle("数据")
             Text(
-                text = "导入：选择 Markdown 文件夹，或 .zip / .tar 压缩包（卡片分类按文件夹层级生成）。导出：全部卡片备份为文件夹。",
+                text = "导入：选择一个 .zip / .tar 压缩包或 Markdown 文件夹，每次导入会成为「书架」里的一本书（同名则更新原书）。" +
+                    "目录、闪卡和微件只显示当前选中的书。导出：全部书架的卡片备份为一个文件夹，每本书一个子文件夹。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

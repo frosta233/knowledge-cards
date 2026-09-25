@@ -9,26 +9,38 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Exports the library as Markdown files (one file per card) into a SAF folder,
- * mirroring the import layout: the category becomes the folder structure and
- * the file body starts with an optional heading — no path declaration needed.
- * The exported folder can be re-imported as a backup.
+ * Exports the whole shelf as Markdown files (one file per card) into a SAF
+ * folder: every book becomes a top-level folder, the category becomes the
+ * nested folder structure and the file body starts with an optional heading —
+ * no path declaration needed.
+ *
+ * Importing an exported book folder again recreates that book, so the export
+ * is a usable backup.
  */
 object CardExporter {
 
     data class ExportResult(val exported: Int, val failed: Int)
 
-    suspend fun export(context: Context, treeUri: Uri, cards: List<Card>): ExportResult =
-        withContext(Dispatchers.IO) {
-            val root = DocumentFile.fromTreeUri(context, treeUri)
-            if (root == null || !root.isDirectory) {
-                return@withContext ExportResult(0, cards.size)
-            }
-            var exported = 0
-            var failed = 0
-            for (card in cards) {
+    /** One book and its cards, ready to be written to disk. */
+    data class BookExport(val bookName: String, val cards: List<Card>)
+
+    suspend fun export(
+        context: Context,
+        treeUri: Uri,
+        books: List<BookExport>
+    ): ExportResult = withContext(Dispatchers.IO) {
+        val root = DocumentFile.fromTreeUri(context, treeUri)
+        if (root == null || !root.isDirectory) {
+            return@withContext ExportResult(0, books.sumOf { it.cards.size })
+        }
+        var exported = 0
+        var failed = 0
+        for (book in books) {
+            if (book.cards.isEmpty()) continue
+            val bookDir = ensureDirectory(context, root, book.bookName)
+            for (card in book.cards) {
                 try {
-                    val dir = ensureDirectory(context, root, card.path)
+                    val dir = ensureDirectory(context, bookDir, card.path)
                     val displayName = "${MarkdownParser.sanitizeForFileName(card.title)}.md"
                     val file = dir.findFile(displayName)
                         ?: dir.createFile("text/markdown", displayName)
@@ -48,14 +60,16 @@ object CardExporter {
                     failed++
                 }
             }
-            ExportResult(exported, failed)
         }
+        ExportResult(exported, failed)
+    }
 
     private fun ensureDirectory(context: Context, root: DocumentFile, path: String): DocumentFile {
         var dir = root
         for (segment in path.split('/').filter { it.isNotBlank() }) {
-            val next = dir.findFile(segment)
-                ?: dir.createDirectory(segment)
+            val safe = MarkdownParser.sanitizeForFileName(segment)
+            val next = dir.findFile(safe)
+                ?: dir.createDirectory(safe)
                 ?: return dir
             dir = next
         }

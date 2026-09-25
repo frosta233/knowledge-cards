@@ -105,6 +105,7 @@ fun DirectoryScreen(
     onOpenCard: (String, Long) -> Unit
 ) {
     val tree by viewModel.tree.collectAsStateWithLifecycle()
+    val bookName by viewModel.bookName.collectAsStateWithLifecycle()
     val expanded by viewModel.expanded.collectAsStateWithLifecycle()
     val highlightCardId by viewModel.highlightCardId.collectAsStateWithLifecycle()
     val highlightCategoryPath by viewModel.highlightCategoryPath.collectAsStateWithLifecycle()
@@ -154,7 +155,22 @@ fun DirectoryScreen(
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         TopAppBar(
             colors = appTopAppBarColors(),
-            title = { Text("目录") },
+            title = {
+                Column {
+                    Text("目录", style = MaterialTheme.typography.titleMedium)
+                    if (bookName.isNotEmpty()) {
+                        // Only the selected book is ever shown — keep its name
+                        // visible so switching books stays obvious.
+                        Text(
+                            text = bookName,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            },
             actions = {
                 IconButton(onClick = { searchOpen = true }) {
                     Icon(Icons.Filled.Search, contentDescription = "检索")
@@ -214,7 +230,11 @@ fun DirectoryScreen(
             if (tree.isEmpty()) {
                 item {
                     Text(
-                        text = "（暂无卡片，请先在「闪卡」页或「设置」页导入）",
+                        text = if (bookName.isEmpty()) {
+                            "（书架是空的，请先在「书架」页导入压缩包或 Markdown 文件夹）"
+                        } else {
+                            "（《$bookName》还没有卡片，请先在「书架」页导入）"
+                        },
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(24.dp)
